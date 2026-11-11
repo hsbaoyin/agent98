@@ -3,6 +3,7 @@
 #include "jsonutil.h"
 
 #include "../core/log.h"
+#include "../core/utf8.h"
 #include "../net/http.h"
 #include "../net/sse.h"
 #include "../net/url.h"
@@ -364,6 +365,105 @@ static cJSON *build_tools(void)
     return tools;
 }
 
+static void append_text_as_utf8(Str *out, const char *text)
+{
+    char *utf8;
+
+    if (text == NULL || text[0] == '\0') {
+        return;
+    }
+    if (a98_utf8_valid(text, strlen(text))) {
+        str_append_cstr(out, text);
+        return;
+    }
+    utf8 = a98_acp_to_utf8(text);
+    if (utf8 != NULL) {
+        str_append_cstr(out, utf8);
+        a98_free(utf8);
+    } else {
+        str_append_cstr(out, text);
+    }
+}
+
+static void format_windows_version(char *out, size_t cap)
+{
+    OSVERSIONINFOA vi;
+    const char *name;
+    char csd[64];
+
+    memset(&vi, 0, sizeof(vi));
+    vi.dwOSVersionInfoSize = sizeof(vi);
+    if (!GetVersionExA(&vi)) {
+        snprintf(out, cap, "Windows 9x");
+        return;
+    }
+    if (vi.dwPlatformId == VER_PLATFORM_WIN32_WINDOWS) {
+        if (vi.dwMajorVersion == 4 && vi.dwMinorVersion == 10) {
+            name = vi.dwBuildNumber >= 2222 ? "Windows 98 Second Edition"
+                                            : "Windows 98";
+        } else if (vi.dwMajorVersion == 4 && vi.dwMinorVersion == 90) {
+            name = "Windows Millennium Edition";
+        } else if (vi.dwMajorVersion == 4 && vi.dwMinorVersion == 0) {
+            name = "Windows 95";
+        } else {
+            name = "Windows 9x";
+        }
+    } else if (vi.dwPlatformId == VER_PLATFORM_WIN32_NT) {
+        name = "Windows NT";
+    } else {
+        name = "Windows";
+    }
+    strncpy(csd, vi.szCSDVersion, sizeof(csd) - 1);
+    csd[sizeof(csd) - 1] = '\0';
+    config_trim(csd);
+    snprintf(out, cap, "%s %lu.%lu.%lu%s%s", name,
+             vi.dwMajorVersion, vi.dwMinorVersion, vi.dwBuildNumber,
+             csd[0] != '\0' ? " " : "", csd);
+}
+
+/*
+ * Prepend a small runtime preamble to the user's system prompt.  The model
+ * needs to know that it is really running on a 9x machine, where the shell
+ * is COMMAND.COM rather than cmd.exe or PowerShell.  This keeps it from
+ * suggesting commands that cannot work there.
+ */
+static char *build_system_prompt(const Config *cfg, const char *user_prompt)
+{
+    Str s;
+    char os[160];
+    char cwd[A98_MAX_PATH];
+    DWORD cwd_len;
+
+    str_init(&s);
+    format_windows_version(os, sizeof(os));
+    str_append_cstr(&s, "Runtime environment (detected automatically):\n");
+    str_appendf(&s, "- OS: %s\n", os);
+    str_append_cstr(&s, "- Workspace: ");
+    if (cfg != NULL) {
+        append_text_as_utf8(&s, cfg->workspace);
+    }
+    str_append_cstr(&s, " (all relative tool paths resolve here)\n");
+
+    cwd_len = GetCurrentDirectoryA(sizeof(cwd), cwd);
+    if (cwd_len > 0 && cwd_len < sizeof(cwd)) {
+        str_append_cstr(&s, "- Current directory: ");
+        append_text_as_utf8(&s, cwd);
+        str_append_cstr(&s, "\n");
+    }
+
+    str_append_cstr(&s,
+        "- Shell: run_command uses the legacy 16-bit COMMAND.COM, NOT "
+        "cmd.exe or PowerShell. Do not use 2>&1, &&, ||, stderr pipes, "
+        "curl, or tasklist. Prefer the built-in file tools; use ver, mem, "
+        "dir, set, or type for system information.\n");
+
+    if (user_prompt != NULL && user_prompt[0] != '\0') {
+        str_append_cstr(&s, "\nUser instructions:\n");
+        append_text_as_utf8(&s, user_prompt);
+    }
+    return str_detach(&s);
+}
+
 static char *build_request_json(const Config *cfg, const char *system_prompt,
                                 const MessageList *messages,
                                 char *err, size_t errcap)
@@ -396,11 +496,29 @@ static char *build_request_json(const Config *cfg, const char *system_prompt,
         set_err(err, errcap, "out of memory");
         return NULL;
     }
-    if (system_prompt != NULL && system_prompt[0] != '\0') {
-        cJSON *sys = cJSON_CreateObject();
-        cJSON_AddStringToObject(sys, "role", "system");
-        cJSON_AddStringToObject(sys, "content", system_prompt);
+    {
+        char *sys_text = build_system_prompt(cfg, system_prompt);
+        cJSON *sys;
+
+        if (sys_text == NULL) {
+            cJSON_Delete(root);
+            set_err(err, errcap, "out of memory");
+            return NULL;
+        }
+        sys = cJSON_CreateObject();
+        if (sys == NULL ||
+            cJSON_AddStringToObject(sys, "role", "system") == NULL ||
+            cJSON_AddStringToObject(sys, "content", sys_text) == NULL) {
+            if (sys != NULL) {
+                cJSON_Delete(sys);
+            }
+            a98_free(sys_text);
+            cJSON_Delete(root);
+            set_err(err, errcap, "out of memory");
+            return NULL;
+        }
         cJSON_AddItemToArray(arr, sys);
+        a98_free(sys_text);
     }
     for (i = 0; i < messages->count; i++) {
         cJSON *obj = message_to_json(&messages->items[i]);

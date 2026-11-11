@@ -9,6 +9,7 @@ BearSSL 连接现代 HTTPS LLM API，不依赖局域网中转机或第二台电�
 - 命令行 `a98.exe` 与原生 GUI `agent98.exe` 共用同一份 `agent98.ini`
 - OpenAI 兼容的 Chat Completions 接口，支持流式与非流式
 - 本地工具：读文件、写文件、列目录、搜索文件、执行命令（需确认）
+- 自动向模型注入运行环境（Windows 版本、workspace、COMMAND.COM 约束）
 
 ## 目录结构
 
@@ -103,6 +104,21 @@ level=3
 - **Workspace / TLS / shell / stream** 开关。
 
 所有字段保存到 `agent98.ini`。
+
+### 运行时环境注入
+
+每次请求都会在 system 消息最前面自动加入一段探测结果，再把用户填写的
+system prompt 作为 `User instructions` 追加在后面：
+
+- 通过 `GetVersionExA` 识别的系统版本，例如
+  `Windows 98 Second Edition 4.10.2222 A`
+- 当前 workspace 和进程工作目录
+- 核心约束：`run_command` 使用 16 位 `COMMAND.COM`，不是 `cmd.exe`
+  或 PowerShell；不要使用 `2>&1`、`&&`、`||`、stderr 管道、`curl`、
+  `tasklist`，优先使用内置文件工具和 `ver`、`mem`、`dir`、`set`、`type`
+
+这样模型不会在 Win9x 上建议无法执行的 PowerShell 命令。该段内容不需要
+配置，也不能通过 INI 关闭。
 
 ## 测试
 
