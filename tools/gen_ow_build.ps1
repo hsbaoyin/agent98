@@ -87,6 +87,14 @@ function Write-LinkFile($path, $name, $subsystem, $list, $resource) {
     $link.Add("system $subsystem")
     $link.Add("name $name")
     $link.Add('option map=' + ($name -replace '\.exe$', '.map'))
+    # Windows 95/98/ME compatibility.  Win9x's PE loader is much less
+    # forgiving than the NT loader, so pin the image at the standard user
+    # base, strip the relocation table (the image is fixed-base anyway) and
+    # keep the image/subsystem version at 4.0.  A 256 KB stack keeps the
+    # BearSSL client contexts comfortable during the TLS handshake.
+    $link.Add('option offset=0x400000')
+    $link.Add('option norelocs')
+    $link.Add('option version=4.0')
     $link.Add('option stack=262144')
     if ($resource) {
         $link.Add('option resource=' + $resource)

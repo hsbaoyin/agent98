@@ -1,6 +1,9 @@
 system nt_win
 name build/ow/agent98.exe
 option map=build/ow/agent98.map
+option offset=0x400000
+option norelocs
+option version=4.0
 option stack=262144
 option resource=build/ow/gui.res
 file build/ow/obj/main_gui.obj

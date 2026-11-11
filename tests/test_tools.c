@@ -5,8 +5,8 @@
  *   gcc -std=c99 -O1 -w -Isrc -Isrc/core -Isrc/agent -Isrc/net \
  *       -Ithird_party/cjson -Ithird_party/bearssl/inc \
  *       tests/test_tools.c src/agent/tools.c src/agent/jsonutil.c \
- *       src/core/base.c src/core/log.c src/core/path.c src/core/str.c \
- *       src/core/utf8.c third_party/cjson/cJSON.c \
+ *       src/core/base.c src/core/config.c src/core/log.c src/core/path.c \
+ *       src/core/str.c src/core/utf8.c third_party/cjson/cJSON.c \
  *       -lws2_32 -o build/host/test_tools.exe
  */
 

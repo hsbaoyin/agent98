@@ -1,6 +1,9 @@
 system nt
 name build/ow/tlsprobe.exe
 option map=build/ow/tlsprobe.map
+option offset=0x400000
+option norelocs
+option version=4.0
 option stack=262144
 file build/ow/obj/tlsprobe.obj
 file build/ow/obj/agent.obj
