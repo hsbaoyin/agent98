@@ -1,0 +1,82 @@
+/*
+ * Agent98 - Win32 resources.
+ *
+ * Kept deliberately simple so that wrc (OpenWatcom) and windres (MinGW)
+ * both accept the file.
+ */
+#include <windows.h>
+#include "resource.h"
+
+IDR_MAINMENU MENU
+BEGIN
+    POPUP "&File"
+    BEGIN
+        MENUITEM "&New conversation",        IDM_NEW
+        MENUITEM "&Save session...",         IDM_SAVE
+        MENUITEM "&Load session...",         IDM_LOAD
+        MENUITEM SEPARATOR
+        MENUITEM "E&xit",                    IDM_EXIT
+    END
+    POPUP "&Tools"
+    BEGIN
+        MENUITEM "&Settings...",             IDM_SETTINGS
+    END
+    POPUP "&Help"
+    BEGIN
+        MENUITEM "&About Agent98",           IDM_ABOUT
+    END
+END
+
+IDR_ACCEL ACCELERATORS
+BEGIN
+    "N", IDM_NEW, VIRTKEY, CONTROL
+    "S", IDM_SAVE, VIRTKEY, CONTROL
+    "O", IDM_LOAD, VIRTKEY, CONTROL
+END
+
+IDD_SETTINGS DIALOG 0, 0, 292, 190
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Agent98 Settings"
+FONT 8, "MS Sans Serif"
+BEGIN
+    LTEXT           "API base:", -1, 8, 10, 54, 8
+    EDITTEXT        IDC_API_BASE, 66, 8, 218, 12, ES_AUTOHSCROLL
+    LTEXT           "API key:", -1, 8, 28, 54, 8
+    EDITTEXT        IDC_API_KEY, 66, 26, 218, 12, ES_AUTOHSCROLL | ES_PASSWORD
+    LTEXT           "Model:", -1, 8, 46, 54, 8
+    EDITTEXT        IDC_MODEL, 66, 44, 218, 12, ES_AUTOHSCROLL
+    LTEXT           "Workspace:", -1, 8, 64, 54, 8
+    EDITTEXT        IDC_WORKSPACE, 66, 62, 218, 12, ES_AUTOHSCROLL
+    LTEXT           "Max steps:", -1, 8, 86, 54, 8
+    EDITTEXT        IDC_MAX_STEPS, 66, 84, 42, 12, ES_AUTOHSCROLL
+    LTEXT           "Max tokens:", -1, 122, 86, 54, 8
+    EDITTEXT        IDC_MAX_TOKENS, 180, 84, 42, 12, ES_AUTOHSCROLL
+    CONTROL         "Verify TLS certificates", IDC_TLS_VERIFY, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 66, 106, 140, 10
+    CONTROL         "Allow shell commands", IDC_ALLOW_SHELL, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 66, 120, 140, 10
+    CONTROL         "Stream responses", IDC_STREAM, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 66, 134, 140, 10
+    DEFPUSHBUTTON   "OK", IDOK, 178, 164, 50, 14
+    PUSHBUTTON      "Cancel", IDCANCEL, 234, 164, 50, 14
+END
+
+IDD_CONFIRM DIALOG 0, 0, 320, 210
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Agent98 - Confirm tool call"
+FONT 8, "MS Sans Serif"
+BEGIN
+    LTEXT           "The model wants to use this tool:", -1, 8, 8, 300, 8
+    LTEXT           "", IDC_CONFIRM_TOOL, 8, 22, 300, 8
+    EDITTEXT        IDC_CONFIRM_ARGS, 8, 36, 304, 132, ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL | WS_VSCROLL
+    DEFPUSHBUTTON   "Allow", IDOK, 196, 182, 54, 14
+    PUSHBUTTON      "Deny", IDCANCEL, 258, 182, 54, 14
+END
+
+IDD_ABOUT DIALOG 0, 0, 240, 120
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "About Agent98"
+FONT 8, "MS Sans Serif"
+BEGIN
+    LTEXT           "Agent98 0.1.0", -1, 12, 12, 216, 10
+    LTEXT           "An AI agent for Windows 98 / 95 / ME.", -1, 12, 30, 216, 10
+    LTEXT           "Native Win32, BearSSL TLS 1.2.", -1, 12, 46, 216, 10
+    DEFPUSHBUTTON   "OK", IDOK, 182, 96, 50, 14
+END
