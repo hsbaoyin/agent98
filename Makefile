@@ -40,7 +40,7 @@ build\ow\tlsprobe.exe: $(PROBE_OBJS)
 	$(LINK) @ow\link_tlsprobe.rsp
 
 clean: .SYMBOLIC
-	-@if exist build\ow\obj rmdir /s /q build\ow\obj
+	-@cmd /c if exist build\ow\obj rmdir /s /q build\ow\obj
 	-@if exist build\ow\a98.exe del build\ow\a98.exe
 	-@if exist build\ow\a98.map del build\ow\a98.map
 	-@if exist build\ow\agent98.exe del build\ow\agent98.exe
