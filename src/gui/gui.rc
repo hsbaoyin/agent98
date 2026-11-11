@@ -34,28 +34,39 @@ BEGIN
     "O", IDM_LOAD, VIRTKEY, CONTROL
 END
 
-IDD_SETTINGS DIALOG 0, 0, 292, 190
+IDD_SETTINGS DIALOG 0, 0, 360, 260
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Agent98 Settings"
 FONT 8, "MS Sans Serif"
 BEGIN
-    LTEXT           "API base:", -1, 8, 10, 54, 8
-    EDITTEXT        IDC_API_BASE, 66, 8, 218, 12, ES_AUTOHSCROLL
-    LTEXT           "API key:", -1, 8, 28, 54, 8
-    EDITTEXT        IDC_API_KEY, 66, 26, 218, 12, ES_AUTOHSCROLL | ES_PASSWORD
-    LTEXT           "Model:", -1, 8, 46, 54, 8
-    EDITTEXT        IDC_MODEL, 66, 44, 218, 12, ES_AUTOHSCROLL
-    LTEXT           "Workspace:", -1, 8, 64, 54, 8
-    EDITTEXT        IDC_WORKSPACE, 66, 62, 218, 12, ES_AUTOHSCROLL
-    LTEXT           "Max steps:", -1, 8, 86, 54, 8
-    EDITTEXT        IDC_MAX_STEPS, 66, 84, 42, 12, ES_AUTOHSCROLL
-    LTEXT           "Max tokens:", -1, 122, 86, 54, 8
-    EDITTEXT        IDC_MAX_TOKENS, 180, 84, 42, 12, ES_AUTOHSCROLL
-    CONTROL         "Verify TLS certificates", IDC_TLS_VERIFY, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 66, 106, 140, 10
-    CONTROL         "Allow shell commands", IDC_ALLOW_SHELL, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 66, 120, 140, 10
-    CONTROL         "Stream responses", IDC_STREAM, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 66, 134, 140, 10
-    DEFPUSHBUTTON   "OK", IDOK, 178, 164, 50, 14
-    PUSHBUTTON      "Cancel", IDCANCEL, 234, 164, 50, 14
+    LTEXT           "Provider:", -1, 8, 12, 58, 8
+    COMBOBOX        IDC_PROVIDER, 72, 9, 130, 90, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "A preset fills in the API base and model.", -1, 210, 12, 142, 8
+    LTEXT           "API base:", -1, 8, 30, 58, 8
+    EDITTEXT        IDC_API_BASE, 72, 27, 280, 12, ES_AUTOHSCROLL
+    LTEXT           "API key:", -1, 8, 46, 58, 8
+    EDITTEXT        IDC_API_KEY, 72, 43, 280, 12, ES_AUTOHSCROLL | ES_PASSWORD
+    LTEXT           "Model:", -1, 8, 62, 58, 8
+    EDITTEXT        IDC_MODEL, 72, 59, 280, 12, ES_AUTOHSCROLL
+    LTEXT           "System prompt:", -1, 8, 78, 58, 8
+    EDITTEXT        IDC_SYSTEM_PROMPT, 72, 75, 280, 40, ES_MULTILINE | ES_AUTOVSCROLL | ES_WANTRETURN | WS_VSCROLL
+    LTEXT           "Temperature:", -1, 8, 121, 58, 8
+    EDITTEXT        IDC_TEMPERATURE, 72, 118, 40, 12, ES_AUTOHSCROLL
+    LTEXT           "Max tokens:", -1, 128, 121, 50, 8
+    EDITTEXT        IDC_MAX_TOKENS, 180, 118, 42, 12, ES_AUTOHSCROLL
+    LTEXT           "Max steps:", -1, 240, 121, 44, 8
+    EDITTEXT        IDC_MAX_STEPS, 288, 118, 42, 12, ES_AUTOHSCROLL
+    LTEXT           "Extra headers:", -1, 8, 137, 58, 8
+    EDITTEXT        IDC_EXTRA_HEADERS, 72, 134, 280, 26, ES_MULTILINE | ES_AUTOVSCROLL | ES_WANTRETURN | WS_VSCROLL
+    LTEXT           "Workspace:", -1, 8, 166, 58, 8
+    EDITTEXT        IDC_WORKSPACE, 72, 163, 280, 12, ES_AUTOHSCROLL
+    CONTROL         "Verify TLS certificates", IDC_TLS_VERIFY, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 72, 182, 120, 10
+    CONTROL         "Allow shell commands", IDC_ALLOW_SHELL, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 200, 182, 120, 10
+    CONTROL         "Stream responses", IDC_STREAM, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 72, 195, 120, 10
+    PUSHBUTTON      "Test connection", IDC_TEST, 72, 212, 80, 14
+    LTEXT           "", IDC_TEST_RESULT, 158, 214, 194, 20
+    DEFPUSHBUTTON   "OK", IDOK, 240, 238, 50, 14
+    PUSHBUTTON      "Cancel", IDCANCEL, 296, 238, 50, 14
 END
 
 IDD_CONFIRM DIALOG 0, 0, 320, 210

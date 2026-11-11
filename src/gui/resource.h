@@ -27,15 +27,21 @@
 #define IDM_SETTINGS       40005
 #define IDM_ABOUT          40006
 
-#define IDC_API_BASE       2000
-#define IDC_API_KEY        2001
-#define IDC_MODEL          2002
-#define IDC_WORKSPACE      2003
-#define IDC_MAX_STEPS      2004
-#define IDC_MAX_TOKENS     2005
-#define IDC_TLS_VERIFY     2006
-#define IDC_ALLOW_SHELL    2007
-#define IDC_STREAM         2008
+#define IDC_PROVIDER       2000
+#define IDC_API_BASE       2001
+#define IDC_API_KEY        2002
+#define IDC_MODEL          2003
+#define IDC_WORKSPACE      2004
+#define IDC_MAX_STEPS      2005
+#define IDC_MAX_TOKENS     2006
+#define IDC_TLS_VERIFY     2007
+#define IDC_ALLOW_SHELL    2008
+#define IDC_STREAM         2009
+#define IDC_SYSTEM_PROMPT  2010
+#define IDC_TEMPERATURE    2011
+#define IDC_EXTRA_HEADERS  2012
+#define IDC_TEST           2013
+#define IDC_TEST_RESULT    2014
 
 #define IDC_CONFIRM_TOOL   2100
 #define IDC_CONFIRM_ARGS   2101

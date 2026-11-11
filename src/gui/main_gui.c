@@ -10,6 +10,7 @@
 #include <windows.h>
 #include <commdlg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #ifdef __WATCOMC__
@@ -28,7 +29,10 @@
 #include "../core/str.h"
 #include "../core/utf8.h"
 #include "../agent/agent.h"
+#include "../agent/api_openai.h"
+#include "../net/http.h"
 #include "../net/net.h"
+#include "../net/url.h"
 
 #ifndef EM_EXLIMITTEXT
 #define EM_EXLIMITTEXT (WM_USER + 37)
@@ -95,6 +99,23 @@ static App *g_dlg_app;
 static const char *g_confirm_tool;
 static const char *g_confirm_args;
 
+typedef struct {
+    const char *name;
+    const char *base;
+    const char *model;
+} ProviderPreset;
+
+static const ProviderPreset g_presets[] = {
+    { "OpenAI",          "https://api.openai.com/v1",       "gpt-4o-mini" },
+    { "DeepSeek",        "https://api.deepseek.com/v1",     "deepseek-chat" },
+    { "Moonshot (Kimi)", "https://api.moonshot.cn/v1",      "moonshot-v1-8k" },
+    { "SiliconFlow",     "https://api.siliconflow.cn/v1",   "Qwen/Qwen2.5-7B-Instruct" },
+    { "Ollama (local)",  "http://127.0.0.1:11434/v1",       "llama3.2" },
+    { "Custom",          "",                                "" }
+};
+
+#define PRESET_COUNT ((int)(sizeof(g_presets) / sizeof(g_presets[0])))
+
 static LRESULT CALLBACK main_wndproc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp);
 static BOOL CALLBACK settings_proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp);
 static BOOL CALLBACK confirm_proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp);
@@ -114,6 +135,40 @@ static void copy_str(char *dst, size_t cap, const char *src)
     }
     strncpy(dst, src, cap - 1);
     dst[cap - 1] = '\0';
+}
+
+static int base_matches(const char *a, const char *b)
+{
+    char ta[512];
+    char tb[512];
+    size_t la;
+    size_t lb;
+
+    copy_str(ta, sizeof(ta), a);
+    copy_str(tb, sizeof(tb), b);
+    config_trim(ta);
+    config_trim(tb);
+    la = strlen(ta);
+    lb = strlen(tb);
+    while (la > 0 && ta[la - 1] == '/') {
+        ta[--la] = '\0';
+    }
+    while (lb > 0 && tb[lb - 1] == '/') {
+        tb[--lb] = '\0';
+    }
+    return a98_strcasecmp(ta, tb) == 0;
+}
+
+static int preset_from_base(const char *base)
+{
+    int i;
+
+    for (i = 0; i + 1 < PRESET_COUNT; i++) {
+        if (base_matches(base, g_presets[i].base)) {
+            return i;
+        }
+    }
+    return PRESET_COUNT - 1;
 }
 
 static void center_window(HWND hwnd)
@@ -591,6 +646,129 @@ static void do_load(App *app)
     }
 }
 
+static void settings_test_connection(HWND dlg, App *app)
+{
+    Config tmpcfg;
+    char *base;
+    char *key;
+    char *extra;
+    char *headers;
+    char urlbuf[900];
+    char err[512];
+    char result[320];
+    Url url;
+    HttpResponse resp;
+    NetConn *conn;
+    size_t len;
+    int verify;
+    int rc;
+
+    (void)app;
+    base = dlg_text_utf8(dlg, IDC_API_BASE);
+    key = dlg_text_utf8(dlg, IDC_API_KEY);
+    extra = dlg_text_utf8(dlg, IDC_EXTRA_HEADERS);
+    if (base == NULL || key == NULL || extra == NULL) {
+        a98_free(base);
+        a98_free(key);
+        a98_free(extra);
+        msgbox_utf8(dlg, "Out of memory.", MB_OK | MB_ICONERROR);
+        return;
+    }
+    config_trim(base);
+    config_trim(key);
+    config_trim(extra);
+    if (base[0] == '\0') {
+        dlg_set_utf8(dlg, IDC_TEST_RESULT,
+                     "Enter an API base URL first.");
+        goto done;
+    }
+
+    len = strlen(base);
+    if (len >= sizeof(urlbuf)) {
+        dlg_set_utf8(dlg, IDC_TEST_RESULT, "API base URL is too long.");
+        goto done;
+    }
+    memcpy(urlbuf, base, len + 1);
+    {
+        static const char cc[] = "/chat/completions";
+        size_t cl = sizeof(cc) - 1;
+        if (len >= cl && a98_strcasecmp(urlbuf + len - cl, cc) == 0) {
+            len -= cl;
+            urlbuf[len] = '\0';
+        }
+    }
+    while (len > 0 && urlbuf[len - 1] == '/') {
+        urlbuf[--len] = '\0';
+    }
+    if (len + 8 > sizeof(urlbuf)) {
+        dlg_set_utf8(dlg, IDC_TEST_RESULT, "API base URL is too long.");
+        goto done;
+    }
+    strcat(urlbuf, "/models");
+
+    err[0] = '\0';
+    if (url_parse(urlbuf, &url, err, sizeof(err)) != 0) {
+        snprintf(result, sizeof(result), "Invalid URL: %s", err);
+        dlg_set_utf8(dlg, IDC_TEST_RESULT, result);
+        goto done;
+    }
+
+    memset(&tmpcfg, 0, sizeof(tmpcfg));
+    copy_str(tmpcfg.api_key, sizeof(tmpcfg.api_key), key);
+    copy_str(tmpcfg.extra_headers, sizeof(tmpcfg.extra_headers), extra);
+    headers = api_build_headers(&tmpcfg, 0);
+    if (headers == NULL) {
+        dlg_set_utf8(dlg, IDC_TEST_RESULT, "Out of memory.");
+        goto done;
+    }
+
+    verify = IsDlgButtonChecked(dlg, IDC_TLS_VERIFY) == BST_CHECKED;
+    dlg_set_utf8(dlg, IDC_TEST_RESULT, "Testing connection...");
+    UpdateWindow(dlg);
+    SetCursor(LoadCursorA(NULL, IDC_WAIT));
+
+    conn = net_open(&url, verify, 10, 20, err, sizeof(err));
+    if (conn == NULL) {
+        snprintf(result, sizeof(result), "Failed: %s",
+                 err[0] != '\0' ? err : "cannot connect");
+    } else {
+        memset(&resp, 0, sizeof(resp));
+        rc = http_request(conn, "GET", &url, headers, NULL, 0, &resp,
+                          NULL, NULL, err, sizeof(err));
+        net_close(conn);
+        if (rc != 0) {
+            snprintf(result, sizeof(result), "Failed: %s",
+                     err[0] != '\0' ? err : "request failed");
+        } else if (resp.status == 200) {
+            strcpy(result, "Connected successfully (HTTP 200).");
+        } else if (resp.status == 401 || resp.status == 403) {
+            snprintf(result, sizeof(result),
+                     "Authentication failed (HTTP %d). Check the API key.",
+                     resp.status);
+        } else if (resp.status == 404) {
+            strcpy(result,
+                   "Endpoint not found (HTTP 404). Check the API base URL.");
+        } else if (resp.status == 429) {
+            strcpy(result, "Reachable, but rate limited (HTTP 429).");
+        } else if (resp.status >= 500) {
+            snprintf(result, sizeof(result),
+                     "Server error (HTTP %d). The endpoint is reachable.",
+                     resp.status);
+        } else {
+            snprintf(result, sizeof(result), "HTTP %d %s", resp.status,
+                     resp.reason);
+        }
+    }
+    a98_free(headers);
+    SetCursor(LoadCursorA(NULL, IDC_ARROW));
+    dlg_set_utf8(dlg, IDC_TEST_RESULT, result);
+
+done:
+    a98_free(base);
+    a98_free(key);
+    a98_free(extra);
+}
+
 static void do_settings(App *app)
 {
     if (app->running) {
@@ -614,14 +792,28 @@ static BOOL CALLBACK settings_proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
 
     (void)lp;
     switch (msg) {
-    case WM_INITDIALOG:
+    case WM_INITDIALOG: {
+        int i;
+        int idx;
+        char tmp[64];
+
         if (app == NULL) {
             EndDialog(dlg, IDCANCEL);
             return TRUE;
         }
+        for (i = 0; i < PRESET_COUNT; i++) {
+            SendDlgItemMessageA(dlg, IDC_PROVIDER, CB_ADDSTRING, 0,
+                                (LPARAM)g_presets[i].name);
+        }
+        idx = preset_from_base(app->cfg.api_base);
+        SendDlgItemMessageA(dlg, IDC_PROVIDER, CB_SETCURSEL, (WPARAM)idx, 0);
         dlg_set_utf8(dlg, IDC_API_BASE, app->cfg.api_base);
         dlg_set_utf8(dlg, IDC_API_KEY, app->cfg.api_key);
         dlg_set_utf8(dlg, IDC_MODEL, app->cfg.model);
+        dlg_set_utf8(dlg, IDC_SYSTEM_PROMPT, app->cfg.system_prompt);
+        dlg_set_utf8(dlg, IDC_EXTRA_HEADERS, app->cfg.extra_headers);
+        sprintf(tmp, "%.2f", app->cfg.temperature);
+        SetDlgItemTextA(dlg, IDC_TEMPERATURE, tmp);
         dlg_set_utf8(dlg, IDC_WORKSPACE, app->cfg.workspace);
         SetDlgItemInt(dlg, IDC_MAX_STEPS, (UINT)app->cfg.max_steps, FALSE);
         SetDlgItemInt(dlg, IDC_MAX_TOKENS, (UINT)app->cfg.max_tokens, FALSE);
@@ -631,30 +823,75 @@ static BOOL CALLBACK settings_proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
                        app->cfg.allow_shell ? BST_CHECKED : BST_UNCHECKED);
         CheckDlgButton(dlg, IDC_STREAM,
                        app->cfg.stream ? BST_CHECKED : BST_UNCHECKED);
+        dlg_set_utf8(dlg, IDC_TEST_RESULT, "");
         center_window(dlg);
         return TRUE;
+    }
 
     case WM_COMMAND:
         switch (LOWORD(wp)) {
+        case IDC_PROVIDER:
+            if (HIWORD(wp) == CBN_SELCHANGE) {
+                int idx = (int)SendDlgItemMessageA(dlg, IDC_PROVIDER,
+                                                   CB_GETCURSEL, 0, 0);
+                if (idx >= 0 && idx < PRESET_COUNT - 1) {
+                    dlg_set_utf8(dlg, IDC_API_BASE, g_presets[idx].base);
+                    dlg_set_utf8(dlg, IDC_MODEL, g_presets[idx].model);
+                    dlg_set_utf8(dlg, IDC_TEST_RESULT, "");
+                }
+            }
+            return TRUE;
+        case IDC_TEST:
+            settings_test_connection(dlg, app);
+            return TRUE;
         case IDOK: {
             char *base;
             char *key;
             char *model;
             char *workspace;
+            char *prompt;
+            char *headers;
+            char *temp;
             char *abs_ws;
             BOOL ok;
+            double t;
 
             base = dlg_text_utf8(dlg, IDC_API_BASE);
             key = dlg_text_utf8(dlg, IDC_API_KEY);
             model = dlg_text_utf8(dlg, IDC_MODEL);
             workspace = dlg_text_utf8(dlg, IDC_WORKSPACE);
+            prompt = dlg_text_utf8(dlg, IDC_SYSTEM_PROMPT);
+            headers = dlg_text_utf8(dlg, IDC_EXTRA_HEADERS);
+            temp = dlg_text_utf8(dlg, IDC_TEMPERATURE);
             if (base == NULL || key == NULL || model == NULL ||
-                workspace == NULL) {
+                workspace == NULL || prompt == NULL || headers == NULL ||
+                temp == NULL) {
                 a98_free(base);
                 a98_free(key);
                 a98_free(model);
                 a98_free(workspace);
+                a98_free(prompt);
+                a98_free(headers);
+                a98_free(temp);
                 msgbox_utf8(dlg, "Out of memory.", MB_OK | MB_ICONERROR);
+                return TRUE;
+            }
+            config_trim(base);
+            config_trim(key);
+            config_trim(model);
+            config_trim(prompt);
+            config_trim(headers);
+            config_trim(temp);
+            if (base[0] == '\0') {
+                a98_free(base);
+                a98_free(key);
+                a98_free(model);
+                a98_free(workspace);
+                a98_free(prompt);
+                a98_free(headers);
+                a98_free(temp);
+                msgbox_utf8(dlg, "The API base URL cannot be empty.",
+                            MB_OK | MB_ICONWARNING);
                 return TRUE;
             }
             if (workspace[0] == '\0') {
@@ -662,6 +899,9 @@ static BOOL CALLBACK settings_proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
                 a98_free(key);
                 a98_free(model);
                 a98_free(workspace);
+                a98_free(prompt);
+                a98_free(headers);
+                a98_free(temp);
                 msgbox_utf8(dlg, "The workspace path cannot be empty.",
                             MB_OK | MB_ICONWARNING);
                 return TRUE;
@@ -675,8 +915,20 @@ static BOOL CALLBACK settings_proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
             copy_str(app->cfg.api_base, sizeof(app->cfg.api_base), base);
             copy_str(app->cfg.api_key, sizeof(app->cfg.api_key), key);
             copy_str(app->cfg.model, sizeof(app->cfg.model), model);
+            copy_str(app->cfg.system_prompt, sizeof(app->cfg.system_prompt),
+                     prompt);
+            copy_str(app->cfg.extra_headers, sizeof(app->cfg.extra_headers),
+                     headers);
             copy_str(app->cfg.workspace, sizeof(app->cfg.workspace),
                      workspace);
+            t = temp[0] != '\0' ? atof(temp) : app->cfg.temperature;
+            if (t < 0.0) {
+                t = 0.0;
+            }
+            if (t > 2.0) {
+                t = 2.0;
+            }
+            app->cfg.temperature = t;
             app->cfg.max_steps =
                 (int)GetDlgItemInt(dlg, IDC_MAX_STEPS, &ok, FALSE);
             if (!ok || app->cfg.max_steps < 1) {
@@ -713,6 +965,9 @@ static BOOL CALLBACK settings_proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
             a98_free(key);
             a98_free(model);
             a98_free(workspace);
+            a98_free(prompt);
+            a98_free(headers);
+            a98_free(temp);
             EndDialog(dlg, IDOK);
             return TRUE;
         }

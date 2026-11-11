@@ -31,6 +31,14 @@ const server = http.createServer((req, res) => {
   let body = '';
   req.on('data', (c) => { body += c; });
   req.on('end', () => {
+    if (req.method === 'GET' && req.url.indexOf('/models') >= 0) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        object: 'list',
+        data: [{ id: 'mock-model', object: 'model', owned_by: 'mock' }]
+      }));
+      return;
+    }
     if (req.method !== 'POST' || req.url.indexOf('/chat/completions') < 0) {
       res.writeHead(404, { 'Content-Type': 'text/plain' });
       res.end('not found');

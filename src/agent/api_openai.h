@@ -38,6 +38,10 @@ int api_chat(const Config *cfg, const char *system_prompt,
              ApiTextFn on_text, void *ctx, volatile int *cancel,
              char *err, size_t errcap);
 
+/* Build the HTTP header block for a request (including extra headers).
+ * Returns a heap string owned by the caller (a98_free) or NULL on OOM. */
+char *api_build_headers(const Config *cfg, int stream);
+
 /* Exposed for unit tests: apply one OpenAI streaming JSON chunk. */
 int openai_apply_chunk(ChatResult *out, const char *json, size_t len,
                        ApiTextFn on_text, void *ctx, char *err, size_t errcap);

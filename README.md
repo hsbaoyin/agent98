@@ -67,6 +67,8 @@ GUI 的 worker 线程会调用 C 运行时（malloc、stdio、日志等）。Ope
 base=https://api.openai.com/v1
 key=sk-...
 model=gpt-4o-mini
+system_prompt=You are Agent98...
+extra_headers=X-Title: Agent98
 stream=1
 max_tokens=1024
 temperature=0.7
@@ -82,6 +84,25 @@ level=3
 
 `workspace` 默认是 exe 同目录下的 `workspace`。日志写入 exe 同目录的
 `agent98.log`。
+
+### GUI 设置
+
+`Tools -> Settings...` 可以直接填写所有 API 参数：
+
+- **Provider** 预设：OpenAI、DeepSeek、Moonshot/Kimi、SiliconFlow、
+  Ollama（本地）、Custom。选择预设会填入对应的 API 地址和默认模型。
+- **API base / API key / Model**：任意 OpenAI 兼容服务；Ollama 的 key
+  可以留空。
+- **System prompt**：多行系统提示词。
+- **Temperature / Max tokens / Max steps**。
+- **Extra headers**：每行一个 `Name: value`，也可以在同一行用 `|`
+  分隔，用于 OpenRouter 等需要额外头的服务。
+- **Test connection**：向 `{api_base}/models` 发一个 GET 请求，显示
+  HTTP 状态。401/403 表示密钥问题，404 表示地址问题，5xx 表示服务端
+  可达但出错。
+- **Workspace / TLS / shell / stream** 开关。
+
+所有字段保存到 `agent98.ini`。
 
 ## 测试
 
@@ -118,6 +139,20 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests\gui_smoke.ps1
 ```
 
 测试覆盖流式回复、工具调用与结果渲染、写文件确认的允许/拒绝。
+
+### 设置对话框冒烟测试
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tests\settings_smoke.ps1
+```
+
+测试会在 8788 端口启动一个临时 mock 服务器，验证服务商预设、API
+base/model 填写、`Test connection` 的 HTTP 200 结果，以及 system
+prompt、temperature、extra headers 是否写入 INI。测试结束后会恢复
+原来的 `agent98.ini`。
+
+> 注意：`build/testrun/agent98.exe` 是手工复制的测试副本，重新构建后
+> 需要把 `build/ow/agent98.exe` 复制过去再跑 GUI 测试。
 
 ### 工具单元冒烟测试
 

@@ -423,7 +423,7 @@ static char *build_request_json(const Config *cfg, const char *system_prompt,
     return text;
 }
 
-static char *build_headers(const Config *cfg, int stream)
+char *api_build_headers(const Config *cfg, int stream)
 {
     Str h;
     const char *p;
@@ -655,7 +655,7 @@ int api_chat(const Config *cfg, const char *system_prompt,
     if (req == NULL) {
         return -1;
     }
-    extra = build_headers(cfg, cfg->stream);
+    extra = api_build_headers(cfg, cfg->stream);
     if (extra == NULL) {
         set_err(err, errcap, "out of memory");
         goto done;
