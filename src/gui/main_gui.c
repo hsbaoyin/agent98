@@ -1398,13 +1398,21 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE prev, LPSTR cmdline, int show)
     if (a98_path_exe_dir(app->exe_dir, sizeof(app->exe_dir)) != 0) {
         strcpy(app->exe_dir, ".");
     }
+
+    /* Open the log before touching the configuration.  If the process dies
+     * during startup, this file is the only clue we get on Windows 9x. */
+    a98_path_join(log_path, sizeof(log_path), app->exe_dir, "agent98.log");
+    log_init(log_path, LOG_LEVEL_DEBUG);
+    log_info("Agent98 GUI starting (version %s)", A98_VERSION);
+    log_info("Executable directory: %s", app->exe_dir);
+
     config_default_path(app->ini_path, sizeof(app->ini_path));
     config_defaults(&app->cfg, app->exe_dir);
-    config_ensure(&app->cfg, app->ini_path);
-
-    a98_path_join(log_path, sizeof(log_path), app->exe_dir, "agent98.log");
-    log_init(log_path, app->cfg.log_level);
-    log_info("Agent98 GUI starting (version %s)", A98_VERSION);
+    if (config_ensure(&app->cfg, app->ini_path) != 0) {
+        log_warn("Cannot load or create %s", app->ini_path);
+    }
+    log_set_level(app->cfg.log_level);
+    log_info("Configuration loaded from %s", app->ini_path);
 
     if (net_init() != 0) {
         msgbox_utf8(NULL, "Failed to initialise Winsock.",

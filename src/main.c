@@ -197,6 +197,7 @@ int main(int argc, char **argv)
 {
     char exe_dir[A98_MAX_PATH];
     char ini_path[A98_MAX_PATH];
+    char log_path[A98_MAX_PATH];
     char sess_path[A98_MAX_PATH];
     char input[4096];
     char err[512];
@@ -213,6 +214,13 @@ int main(int argc, char **argv)
         strcpy(exe_dir, ".");
     }
 
+    /* Log from the very first statement: if the process dies during startup
+     * this file is the only evidence available on Windows 9x. */
+    a98_path_join(log_path, sizeof(log_path), exe_dir, "agent98.log");
+    log_init(log_path, LOG_LEVEL_DEBUG);
+    log_info("Agent98 CLI starting (version %s)", A98_VERSION);
+    log_info("Executable directory: %s", exe_dir);
+
     config_default_path(ini_path, sizeof(ini_path));
     config_defaults(&cfg, exe_dir);
     if (config_ensure(&cfg, ini_path) != 0) {
@@ -225,7 +233,9 @@ int main(int argc, char **argv)
         config_save(&cfg, ini_path);
     }
 
-    log_init(NULL, cfg.log_level);
+    log_set_level(cfg.log_level);
+    log_info("Configuration: %s", ini_path);
+    log_info("Workspace: %s", cfg.workspace);
     ensure_workspace(cfg.workspace);
     agent_ensure_dirs(NULL);
 
