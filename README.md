@@ -114,7 +114,7 @@ temperature=0.7
 [agent]
 workspace=C:\Agent98
 allow_shell=0
-max_steps=8
+max_steps=24
 [tls]
 verify=1
 [log]
@@ -142,6 +142,21 @@ level=3
 - **Workspace / TLS / shell / stream** 开关。
 
 所有字段保存到 `agent98.ini`。
+
+### 网络重试与文本换行
+
+`api_chat` 对瞬时故障自动重试，最多 2 次（1 秒、2 秒退避）：
+
+- 连接失败、TLS 读错误等网络层错误
+- HTTP 429 / 502 / 503 / 504
+
+每次重试都会写入 `agent98.log`（WARN 级别）。如果流式回复已经把部分文字
+显示出来，就不再重试，避免内容重复；退避期间按 Ctrl+C 也能立即取消。
+
+`write_file` 写文本文件时会把孤立的 `\n` 规范化为 DOS 的 `\r\n`，已有的
+`\r\n` 不会重复转换。这样模型生成的 `.BAT` / `.CMD` 才能在 Windows 9x 的
+16 位 `COMMAND.COM` 下逐行执行；`.EXE`、`.DLL`、`.ZIP` 等二进制扩展名
+保持原始字节。
 
 ### 运行时环境注入
 
@@ -175,7 +190,8 @@ node tests\mock_openai.js 8787
 ```
 
 在 `build/testrun/agent98.ini` 中把 `api.base` 指向
-`http://127.0.0.1:8787/v1`，`key` 可填 `test`。
+`http://127.0.0.1:8787/v1`，`key` 可填 `test`。发送 `retry 503` 或
+`retry drop` 可以让服务器第一次请求返回 503 / 直接断开，用来验证重试。
 
 ### CLI
 
@@ -208,6 +224,27 @@ prompt、temperature、extra headers 是否写入 INI。测试结束后会恢复
 > 注意：`build/testrun/agent98.exe` 是手工复制的测试副本，重新构建后
 > 需要把 `build/ow/agent98.exe` 复制过去再跑 GUI 测试。
 
+### 重试冒烟测试
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tests\retry_smoke.ps1
+```
+
+脚本会自己启动 mock 服务器：第一次请求返回 503（或直接断开连接），第二次
+成功，用来验证自动重试、退避日志和回复不重复。默认目录是
+`build\testrun_retry`，需要先把 `build\ow\a98.exe` 复制进去；脚本会覆盖
+该目录下的 `agent98.ini`。
+
+### PE 兼容性检查
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\check_pe.ps1 `
+    build\ow\a98.exe build\ow\agent98.exe build\ow\tlsprobe.exe
+```
+
+检查镜像基址 0x400000、重定位表是否剥离、subsystem 版本 4.0、256 KB 栈，
+以及是否引用了 NT 专有的 DLL。发布前应全部 PASS。
+
 ### 工具单元冒烟测试
 
 主机上可用 MinGW/GCC 构建：
@@ -224,7 +261,7 @@ gcc -std=c99 -O1 -w -Isrc -Isrc/core -Isrc/agent -Isrc/net ^
 
 - 目前仅实现 OpenAI 兼容接口；Anthropic / Gemini 尚未接入
 - Win9x 上的 RichEdit 2.0A 不可用时自动回退到 RichEdit 1.0 / EDIT
-- 尚未实现代理、自动重试、上下文裁剪
+- 尚未实现代理和上下文裁剪
 - 关闭窗口时最多等待 worker 3 秒；超时路径仍需加强
 
 ## 许可证

@@ -27,6 +27,10 @@ function chunk(delta, finish) {
   };
 }
 
+/* Counters for the retry tests: the first request fails on purpose, the
+ * second one succeeds. */
+const flakyCounters = {};
+
 const server = http.createServer((req, res) => {
   let body = '';
   req.on('data', (c) => { body += c; });
@@ -60,6 +64,26 @@ const server = http.createServer((req, res) => {
     const wantsTool = /list files/i.test(lastUser) && freshUser;
     const wantsWrite = /write file/i.test(lastUser) && freshUser;
     const stream = !!payload.stream;
+    const wantsRetry503 = /retry 503/i.test(lastUser) && freshUser;
+    const wantsRetryDrop = /retry drop/i.test(lastUser) && freshUser;
+    let retried = false;
+
+    if (wantsRetry503 || wantsRetryDrop) {
+      const key = wantsRetry503 ? '503' : 'drop';
+      flakyCounters[key] = (flakyCounters[key] || 0) + 1;
+      if (flakyCounters[key] === 1) {
+        if (wantsRetry503) {
+          res.writeHead(503, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            error: { message: 'mock service overloaded', type: 'server_error' }
+          }));
+        } else {
+          req.socket.destroy();
+        }
+        return;
+      }
+      retried = true;
+    }
 
     if (wantsTool || wantsWrite) {
       const call = wantsWrite ? {
@@ -108,7 +132,9 @@ const server = http.createServer((req, res) => {
     }
 
     let text = 'Hello from the mock server.';
-    if (hasToolResult) {
+    if (retried) {
+      text = 'The retry succeeded.';
+    } else if (hasToolResult) {
       if (/Wrote \d+ bytes/.test(lastTool)) {
         text = 'I wrote the file.';
       } else if (/denied by the user/i.test(lastTool)) {

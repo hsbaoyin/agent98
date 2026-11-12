@@ -742,77 +742,110 @@ static void api_error_from_body(int status, const char *body, size_t len,
     }
 }
 
-int api_chat(const Config *cfg, const char *system_prompt,
-             const MessageList *messages, ChatResult *out,
-             ApiTextFn on_text, void *ctx, volatile int *cancel,
-             char *err, size_t errcap)
+/*
+ * Transient failures (a dropped dial-up link, a TLS read error, an overloaded
+ * provider) are worth retrying; authentication and request errors are not.
+ */
+#define API_MAX_RETRIES 2
+
+static int retryable_status(int status)
 {
-    Url url;
-    char headers[2048];
-    char *req = NULL;
-    char *extra = NULL;
+    return status == 429 || status == 502 || status == 503 || status == 504;
+}
+
+static int retry_delay_ms(int retry_no)
+{
+    return retry_no <= 1 ? 1000 : 2000;
+}
+
+/* Sleep in small slices so Ctrl+C during the backoff still cancels. */
+static int retry_sleep(int ms, volatile int *cancel)
+{
+    int waited = 0;
+
+    while (waited < ms) {
+        if (cancel != NULL && *cancel) {
+            return -1;
+        }
+        Sleep(100);
+        waited += 100;
+    }
+    return 0;
+}
+
+typedef struct {
+    ApiTextFn fn;
+    void *user;
+    int emitted;
+} TextRelay;
+
+static int text_relay(void *ctx, const char *text, size_t len)
+{
+    TextRelay *relay = (TextRelay *)ctx;
+
+    relay->emitted = 1;
+    if (relay->fn != NULL) {
+        return relay->fn(relay->user, text, len);
+    }
+    return 0;
+}
+
+/*
+ * One HTTP exchange.  Sets *retryable when the failure looks transient and
+ * nothing has been shown to the user yet.
+ */
+static int api_chat_attempt(const Config *cfg, const Url *url,
+                            const char *headers, const char *req,
+                            ChatResult *out, ApiTextFn on_text, void *ctx,
+                            volatile int *cancel, int *retryable,
+                            char *err, size_t errcap)
+{
     NetConn *conn = NULL;
     HttpResponse resp;
     SinkCtx sink;
+    TextRelay relay;
     int rc = -1;
-    int stream;
+    int stream = cfg->stream;
 
-    if (cfg == NULL || messages == NULL || out == NULL) {
-        return -1;
-    }
-    if (err != NULL && errcap > 0) {
-        err[0] = '\0';
-    }
-    if (make_endpoint(cfg->api_base, &url, err, errcap) != 0) {
-        return -1;
-    }
-    if (cfg->api_key[0] == '\0') {
-        log_warn("API key is empty; only local/unauthorised endpoints will work");
-    }
-    req = build_request_json(cfg, system_prompt, messages, err, errcap);
-    if (req == NULL) {
-        return -1;
-    }
-    extra = api_build_headers(cfg, cfg->stream);
-    if (extra == NULL) {
-        set_err(err, errcap, "out of memory");
-        goto done;
-    }
-    snprintf(headers, sizeof(headers), "%s", extra);
+    *retryable = 0;
+    relay.fn = on_text;
+    relay.user = ctx;
+    relay.emitted = 0;
 
-    if (cancel != NULL && *cancel) {
-        set_err(err, errcap, "cancelled by user");
-        goto done;
-    }
-    conn = net_open(&url, cfg->tls_verify, cfg->connect_timeout_sec,
+    conn = net_open(url, cfg->tls_verify, cfg->connect_timeout_sec,
                     cfg->request_timeout_sec, err, errcap);
     if (conn == NULL) {
-        goto done;
+        *retryable = 1;
+        return -1;
     }
     net_set_cancel(conn, cancel);
 
-    stream = cfg->stream;
+    memset(&resp, 0, sizeof(resp));
     memset(&sink, 0, sizeof(sink));
     sink.conn = conn;
     sink.timeout_sec = cfg->request_timeout_sec;
     sink.resp = &resp;
     sink.streaming = stream;
     sink.result = out;
-    sink.on_text = on_text;
-    sink.user = ctx;
+    sink.on_text = text_relay;
+    sink.user = &relay;
     str_init(&sink.sse.line);
     str_init(&sink.sse.data);
     str_init(&sink.sse.event);
     str_init(&sink.raw);
     str_init(&sink.error_body);
-    memset(&resp, 0, sizeof(resp));
 
-    if (http_request(conn, "POST", &url, headers, req, strlen(req), &resp,
+    if (http_request(conn, "POST", url, headers, req, strlen(req), &resp,
                      body_sink, &sink, err, errcap) != 0) {
         if (sink.failed) {
             set_err(err, errcap, "%s", sink.err[0] ? sink.err : "stream failed");
         } else if (err != NULL && errcap > 0 && err[0] == '\0') {
             set_err(err, errcap, "%s", net_error(conn));
+        }
+        /* No HTTP status means the connection or TLS layer failed.  A
+         * half-received body is retryable only while nothing was shown. */
+        if (resp.status == 0 || !relay.emitted) {
+            *retryable = 1;
         }
         goto done_sink;
     }
@@ -820,6 +853,9 @@ int api_chat(const Config *cfg, const char *system_prompt,
     if (resp.status != 200) {
         api_error_from_body(resp.status, sink.error_body.data,
                             sink.error_body.len, err, errcap);
+        if (retryable_status(resp.status) && !relay.emitted) {
+            *retryable = 1;
+        }
         goto done_sink;
     }
     if (stream) {
@@ -860,10 +896,83 @@ done_sink:
     sse_free(&sink.sse);
     str_free(&sink.raw);
     str_free(&sink.error_body);
-done:
-    if (conn != NULL) {
-        net_close(conn);
+    net_close(conn);
+    return rc;
+}
+
+int api_chat(const Config *cfg, const char *system_prompt,
+             const MessageList *messages, ChatResult *out,
+             ApiTextFn on_text, void *ctx, volatile int *cancel,
+             char *err, size_t errcap)
+{
+    Url url;
+    char headers[2048];
+    char *req = NULL;
+    char *extra = NULL;
+    int rc = -1;
+    int attempt;
+
+    if (cfg == NULL || messages == NULL || out == NULL) {
+        return -1;
     }
+    if (err != NULL && errcap > 0) {
+        err[0] = '\0';
+    }
+    if (make_endpoint(cfg->api_base, &url, err, errcap) != 0) {
+        return -1;
+    }
+    if (cfg->api_key[0] == '\0') {
+        log_warn("API key is empty; only local/unauthorised endpoints will work");
+    }
+    req = build_request_json(cfg, system_prompt, messages, err, errcap);
+    if (req == NULL) {
+        return -1;
+    }
+    extra = api_build_headers(cfg, cfg->stream);
+    if (extra == NULL) {
+        set_err(err, errcap, "out of memory");
+        goto done;
+    }
+    snprintf(headers, sizeof(headers), "%s", extra);
+
+    for (attempt = 0; attempt <= API_MAX_RETRIES; attempt++) {
+        int retryable = 0;
+
+        if (cancel != NULL && *cancel) {
+            set_err(err, errcap, "cancelled by user");
+            goto done;
+        }
+        if (attempt > 0) {
+            /* Discard anything from the failed attempt before retrying. */
+            chat_result_free(out);
+            chat_result_init(out);
+        }
+        if (err != NULL && errcap > 0) {
+            err[0] = '\0';
+        }
+        if (api_chat_attempt(cfg, &url, headers, req, out, on_text, ctx,
+                             cancel, &retryable, err, errcap) == 0) {
+            rc = 0;
+            goto done;
+        }
+        if (!retryable || attempt == API_MAX_RETRIES) {
+            if (retryable) {
+                log_warn("giving up after %d attempts: %s", attempt + 1,
+                         (err != NULL && err[0] != '\0') ? err : "network error");
+            }
+            goto done;
+        }
+        log_warn("request failed (%s); retrying in %d s (attempt %d of %d)",
+                 (err != NULL && err[0] != '\0') ? err : "network error",
+                 retry_delay_ms(attempt + 1) / 1000,
+                 attempt + 2, API_MAX_RETRIES + 1);
+        if (retry_sleep(retry_delay_ms(attempt + 1), cancel) != 0) {
+            set_err(err, errcap, "cancelled by user");
+            goto done;
+        }
+    }
+
+done:
     a98_free(extra);
     if (req != NULL) {
         cJSON_free(req);

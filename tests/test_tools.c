@@ -40,6 +40,20 @@ static void run(Agent *a, const char *name, const char *args)
     str_free(&out);
 }
 
+static int read_bytes(const char *path, char *buf, size_t cap, size_t *out_len)
+{
+    FILE *f = fopen(path, "rb");
+    size_t n;
+
+    if (f == NULL) {
+        return -1;
+    }
+    n = fread(buf, 1, cap, f);
+    fclose(f);
+    *out_len = n;
+    return 0;
+}
+
 int main(void)
 {
     Config cfg;
@@ -62,6 +76,36 @@ int main(void)
         "{\"path\":\"build/host\",\"pattern\":\"world\"}");
     run(&a, "run_command",
         "{\"command\":\"echo stdout-line & echo stderr-line 1>&2\"}");
+
+    /* Text files must come out with DOS line endings, even when the model
+     * sends bare LF; existing CRLF pairs must not be doubled. */
+    {
+        static const char expect_text[] = "@echo off\r\necho hi\r\necho mixed\r\n";
+        static const char expect_bin[] = "a\nb";
+        char buf[128];
+        size_t n = 0;
+
+        run(&a, "write_file",
+            "{\"path\":\"build/host/tool_crlf.bat\",\"content\":"
+            "\"@echo off\\necho hi\\r\\necho mixed\\n\"}");
+        if (read_bytes("build/host/tool_crlf.bat", buf, sizeof(buf), &n) != 0 ||
+            n != strlen(expect_text) || memcmp(buf, expect_text, n) != 0) {
+            printf("FAIL: text file did not use CRLF line endings\n");
+            failures++;
+        } else {
+            printf("PASS: text file uses CRLF line endings\n");
+        }
+
+        run(&a, "write_file",
+            "{\"path\":\"build/host/tool_bin.bin\",\"content\":\"a\\nb\"}");
+        if (read_bytes("build/host/tool_bin.bin", buf, sizeof(buf), &n) != 0 ||
+            n != strlen(expect_bin) || memcmp(buf, expect_bin, n) != 0) {
+            printf("FAIL: binary file was rewritten\n");
+            failures++;
+        } else {
+            printf("PASS: binary file keeps its bytes\n");
+        }
+    }
 
     if (failures != 0) {
         printf("\n%d test(s) failed\n", failures);

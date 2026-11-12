@@ -55,7 +55,7 @@ void config_defaults(Config *cfg, const char *exe_dir)
     cfg->tls_verify = 1;
     cfg->allow_outside = 0;
     cfg->allow_shell = 1;
-    cfg->max_steps = 8;
+    cfg->max_steps = 24;
     cfg->connect_timeout_sec = 30;
     cfg->request_timeout_sec = 180;
     cfg->log_level = 2;

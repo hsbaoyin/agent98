@@ -1,0 +1,6 @@
+# The Win9x release package must keep DOS CRLF line endings in the
+# repository itself, otherwise raw downloads and GitHub zip archives contain
+# LF-only files that Windows 9x Notepad displays as one long line.
+# core.autocrlf would otherwise normalise these GBK-encoded files to LF.
+/dist/README.TXT -text
+/dist/SAMPLE.INI -text

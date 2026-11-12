@@ -3,6 +3,25 @@
 All notable changes to Agent98 are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- `write_file` converts bare LF line endings to DOS CRLF for text files
+  (`.bat`, `.cmd`, `.ini`, `.txt`, `.asm`, `.c`, `.h` and any unknown
+  extension); binaries keep their bytes untouched. Windows Me's 16-bit
+  `COMMAND.COM` used to read an LF-only `.BAT` as one huge command line and
+  fail with "Bad command or file name".
+- `api_chat` retries transient failures up to twice with a 1 s / 2 s backoff:
+  connection and TLS read errors, plus HTTP 429, 502, 503 and 504. Retries are
+  logged and are skipped once part of the answer has already been displayed,
+  so streamed text is never duplicated.
+
+### Changed
+
+- Default `agent.max_steps` raised from 8 to 24, so long diagnostic tasks can
+  finish without hitting the tool-round limit.
+
 ## [0.1.0] - 2026-11-12
 
 First public build. Runs on Windows 95 OSR2 / 98 / 98SE / Me.

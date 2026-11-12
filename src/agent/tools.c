@@ -251,6 +251,83 @@ static int tool_read_file(Agent *a, cJSON *args, Str *out, char *err, size_t err
     return 0;
 }
 
+/*
+ * File types that must keep their exact bytes.  Everything else is treated
+ * as text and gets DOS line endings.
+ */
+static int path_is_binary(const char *path)
+{
+    static const char *const binary_ext[] = {
+        "exe", "com", "dll", "drv", "vxd", "386", "sys", "obj", "lib",
+        "bin", "dat", "zip", "cab", "lzh", "arj", "rar", "gz", "png",
+        "gif", "jpg", "jpeg", "bmp", "ico", "wav", "voc", "mid", "avi",
+        "mp3", "hlp", "chm", "ttf", "fon", "pdr", NULL
+    };
+    const char *dot;
+    const char *sep;
+    int i;
+
+    dot = strrchr(path, '.');
+    if (dot == NULL || dot[1] == '\0') {
+        return 0;
+    }
+    sep = strrchr(path, '\\');
+    if (sep != NULL && dot < sep) {
+        return 0;
+    }
+    sep = strrchr(path, '/');
+    if (sep != NULL && dot < sep) {
+        return 0;
+    }
+    for (i = 0; binary_ext[i] != NULL; i++) {
+        if (a98_strcasecmp(dot + 1, binary_ext[i]) == 0) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/*
+ * Windows 9x COMMAND.COM cannot cope with bare LF line endings: it reads the
+ * whole .BAT as one very long command line and fails with "Bad command or
+ * file name".  The model sends plain "\n", so convert lone LF to CRLF while
+ * leaving existing CRLF pairs (and lone CR) untouched.
+ */
+static int write_text_dos(FILE *f, const char *content, size_t len,
+                          size_t *written)
+{
+    char buf[4096];
+    size_t o = 0;
+    size_t i;
+    size_t total = 0;
+    int prev_cr = 0;
+
+    for (i = 0; i < len; i++) {
+        char c = content[i];
+
+        if (o + 2 > sizeof(buf)) {
+            if (fwrite(buf, 1, o, f) != o) {
+                return -1;
+            }
+            total += o;
+            o = 0;
+        }
+        if (c == '\n' && !prev_cr) {
+            buf[o++] = '\r';
+        }
+        buf[o++] = c;
+        prev_cr = (c == '\r');
+    }
+    if (o > 0) {
+        if (fwrite(buf, 1, o, f) != o) {
+            return -1;
+        }
+        total += o;
+    }
+    *written = total;
+    return 0;
+}
+
 static int tool_write_file(Agent *a, cJSON *args, Str *out, char *err, size_t errcap)
 {
     char path[A98_MAX_PATH];
@@ -258,6 +335,8 @@ static int tool_write_file(Agent *a, cJSON *args, Str *out, char *err, size_t er
     const char *user;
     const char *content;
     size_t len;
+    size_t written = 0;
+    int text_mode;
     FILE *f;
 
     user = arg_str(args, "path", NULL);
@@ -284,18 +363,32 @@ static int tool_write_file(Agent *a, cJSON *args, Str *out, char *err, size_t er
     }
     a98_path_dirname(path, dir, sizeof(dir));
     a98_path_mkdirs(dir);
+    text_mode = !path_is_binary(path);
     f = fopen(path, "wb");
     if (f == NULL) {
         set_err(err, errcap, "cannot write %s", user);
         return -1;
     }
-    if (len > 0 && fwrite(content, 1, len, f) != len) {
-        fclose(f);
-        set_err(err, errcap, "short write to %s", user);
-        return -1;
+    if (text_mode) {
+        if (write_text_dos(f, content, len, &written) != 0) {
+            fclose(f);
+            set_err(err, errcap, "short write to %s", user);
+            return -1;
+        }
+    } else {
+        if (len > 0 && fwrite(content, 1, len, f) != len) {
+            fclose(f);
+            set_err(err, errcap, "short write to %s", user);
+            return -1;
+        }
+        written = len;
     }
     fclose(f);
-    str_appendf(out, "Wrote %lu bytes to %s\n", (unsigned long)len, user);
+    if (written != len) {
+        log_info("write_file: converted line endings to CRLF (%lu -> %lu bytes): %s",
+                 (unsigned long)len, (unsigned long)written, user);
+    }
+    str_appendf(out, "Wrote %lu bytes to %s\n", (unsigned long)written, user);
     return 0;
 }
 
@@ -654,7 +747,7 @@ static const char schema_read_file[] =
 static const char schema_write_file[] =
     "{\"type\":\"object\",\"properties\":{"
     "\"path\":{\"type\":\"string\",\"description\":\"File path relative to the workspace.\"},"
-    "\"content\":{\"type\":\"string\",\"description\":\"Full UTF-8 content to write.\"}},"
+    "\"content\":{\"type\":\"string\",\"description\":\"Full UTF-8 content to write. Line endings are converted to DOS CRLF for text files.\"}},"
     "\"required\":[\"path\",\"content\"]}";
 
 static const char schema_search[] =
