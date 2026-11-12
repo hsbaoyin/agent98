@@ -17,6 +17,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <windows.h>
 
 static int failures = 0;
 
@@ -38,6 +39,42 @@ static void run(Agent *a, const char *name, const char *args)
         failures++;
     }
     str_free(&out);
+}
+
+/* Run a tool and copy its textual output for assertions. */
+static int run_capture(Agent *a, const char *name, const char *args,
+                       char *captured, size_t cap)
+{
+    Str out;
+    char err[512];
+    int rc;
+
+    str_init(&out);
+    err[0] = '\0';
+    rc = tools_execute(a, name, args, &out, err, sizeof(err));
+    if (captured != NULL && cap > 0) {
+        size_t n = out.len < cap - 1 ? out.len : cap - 1;
+        memcpy(captured, str_cstr(&out), n);
+        captured[n] = '\0';
+    }
+    if (rc != 0) {
+        printf("error: %s\n", err);
+    }
+    str_free(&out);
+    return rc;
+}
+
+static int write_raw(const char *path, const char *data, size_t len)
+{
+    FILE *f = fopen(path, "wb");
+    size_t n;
+
+    if (f == NULL) {
+        return -1;
+    }
+    n = fwrite(data, 1, len, f);
+    fclose(f);
+    return n == len ? 0 : -1;
 }
 
 static int read_bytes(const char *path, char *buf, size_t cap, size_t *out_len)
@@ -104,6 +141,101 @@ int main(void)
             failures++;
         } else {
             printf("PASS: binary file keeps its bytes\n");
+        }
+    }
+
+    /* Chinese text must be written in the local code page with CRLF and be
+     * converted back to UTF-8 when read, so Notepad/COMMAND.COM and the model
+     * both see readable text. */
+    {
+        /* "中文测试" in UTF-8. */
+        static const char utf8_cn[] =
+            "\xE4\xB8\xAD\xE6\x96\x87\xE6\xB5\x8B\xE8\xAF\x95";
+        /* The same text in GBK (CP936) with DOS line endings. */
+        static const char gbk_cn[] =
+            "\xD6\xD0\xCE\xC4\xB2\xE2\xCA\xD4"
+            "\r\n\xB5\xDA\xB6\xFE\xD0\xD0\r\n";
+        char buf[512];
+        char captured[1024];
+        size_t n = 0;
+        size_t i;
+        int lone_lf = 0;
+        int rc;
+
+        run(&a, "write_file",
+            "{\"path\":\"build/host/tool_cn.txt\",\"content\":"
+            "\"\\u4e2d\\u6587\\u6d4b\\u8bd5\\n\\u7b2c\\u4e8c\\u884c\\n\"}");
+        if (read_bytes("build/host/tool_cn.txt", buf, sizeof(buf), &n) != 0) {
+            printf("FAIL: cannot read back tool_cn.txt\n");
+            failures++;
+        } else {
+            for (i = 0; i < n; i++) {
+                if (buf[i] == '\n' && (i == 0 || buf[i - 1] != '\r')) {
+                    lone_lf = 1;
+                }
+            }
+            if (lone_lf) {
+                printf("FAIL: Chinese text has bare LF line endings\n");
+                failures++;
+            } else {
+                printf("PASS: Chinese text uses CRLF line endings\n");
+            }
+            if (GetACP() == 936) {
+                if (n != sizeof(gbk_cn) - 1 ||
+                    memcmp(buf, gbk_cn, sizeof(gbk_cn) - 1) != 0) {
+                    printf("FAIL: Chinese text was not written as GBK\n");
+                    failures++;
+                } else {
+                    printf("PASS: Chinese text written as GBK\n");
+                }
+            } else {
+                printf("SKIP: GBK byte check (ACP=%u)\n", (unsigned)GetACP());
+            }
+        }
+
+        rc = run_capture(&a, "read_file",
+                         "{\"path\":\"build/host/tool_cn.txt\"}",
+                         captured, sizeof(captured));
+        if (rc != 0 || strstr(captured, utf8_cn) == NULL) {
+            printf("FAIL: read_file did not return UTF-8 Chinese text\n");
+            failures++;
+        } else {
+            printf("PASS: read_file restores UTF-8 Chinese text\n");
+        }
+
+        /* A GBK file created by a Win9x application must be converted. */
+        if (write_raw("build/host/tool_gbk.txt", gbk_cn,
+                      sizeof(gbk_cn) - 1) != 0) {
+            printf("FAIL: cannot create the GBK fixture\n");
+            failures++;
+        } else {
+            rc = run_capture(&a, "read_file",
+                             "{\"path\":\"build/host/tool_gbk.txt\"}",
+                             captured, sizeof(captured));
+            if (rc != 0 || strstr(captured, utf8_cn) == NULL) {
+                printf("FAIL: GBK file was not converted to UTF-8\n");
+                failures++;
+            } else {
+                printf("PASS: GBK file is converted to UTF-8\n");
+            }
+        }
+
+        /* A UTF-8 BOM must be dropped, not passed to the model. */
+        if (write_raw("build/host/tool_bom.txt",
+                      "\xEF\xBB\xBF" "\xE4\xB8\xAD\xE6\x96\x87", 9) != 0) {
+            printf("FAIL: cannot create the BOM fixture\n");
+            failures++;
+        } else {
+            rc = run_capture(&a, "read_file",
+                             "{\"path\":\"build/host/tool_bom.txt\"}",
+                             captured, sizeof(captured));
+            if (rc != 0 ||
+                strncmp(captured, "\xE4\xB8\xAD\xE6\x96\x87", 6) != 0) {
+                printf("FAIL: UTF-8 BOM was not stripped\n");
+                failures++;
+            } else {
+                printf("PASS: UTF-8 BOM is stripped\n");
+            }
         }
     }
 

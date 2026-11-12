@@ -75,6 +75,42 @@ static int resolve_path(Agent *a, const char *user, char *out, size_t cap,
     return 0;
 }
 
+/*
+ * The model always reads UTF-8.  Files created by Win9x applications are
+ * usually in the local ANSI code page (GBK on a Simplified Chinese system),
+ * so validate UTF-8 first and convert from CP_ACP when needed.  A UTF-8 BOM
+ * is dropped.  `buf` is returned (possibly reallocated) and *len updated.
+ */
+static char *text_buffer_to_utf8(char *buf, size_t *len, const char *path)
+{
+    size_t n = *len;
+    char *converted;
+
+    if (n >= 3 && (unsigned char)buf[0] == 0xEF &&
+        (unsigned char)buf[1] == 0xBB && (unsigned char)buf[2] == 0xBF) {
+        memmove(buf, buf + 3, n - 2);
+        n -= 3;
+        *len = n;
+    }
+    if (a98_utf8_valid(buf, n)) {
+        return buf;
+    }
+    converted = a98_acp_to_utf8(buf);
+    if (converted == NULL || (converted[0] == '\0' && n > 0)) {
+        /* Neither valid UTF-8 nor convertible: hand back the raw bytes
+         * instead of losing the file. */
+        a98_free(converted);
+        log_warn("read_file: cannot convert %s from code page %u",
+                 path, (unsigned)GetACP());
+        return buf;
+    }
+    log_info("read_file: converted %s from code page %u to UTF-8",
+             path, (unsigned)GetACP());
+    a98_free(buf);
+    *len = strlen(converted);
+    return converted;
+}
+
 static char *read_text_file(const char *path, size_t max_len, size_t *out_len,
                             int *truncated, char *err, size_t errcap)
 {
@@ -122,6 +158,7 @@ static char *read_text_file(const char *path, size_t max_len, size_t *out_len,
             return NULL;
         }
     }
+    buf = text_buffer_to_utf8(buf, &n, path);
     if (out_len != NULL) {
         *out_len = n;
     }
@@ -328,15 +365,44 @@ static int write_text_dos(FILE *f, const char *content, size_t len,
     return 0;
 }
 
+/*
+ * Convert the model's UTF-8 content to the local ANSI code page so Notepad,
+ * EDIT and COMMAND.COM can display it.  Returns NULL when the conversion is
+ * not lossless (characters the code page cannot represent), in which case the
+ * caller keeps the original UTF-8 bytes.
+ */
+static char *utf8_to_local_lossless(const char *text)
+{
+    char *local;
+    char *roundtrip;
+
+    local = a98_utf8_to_acp(text);
+    if (local == NULL) {
+        return NULL;
+    }
+    roundtrip = a98_acp_to_utf8(local);
+    if (roundtrip == NULL || strcmp(roundtrip, text) != 0) {
+        a98_free(roundtrip);
+        a98_free(local);
+        return NULL;
+    }
+    a98_free(roundtrip);
+    return local;
+}
+
 static int tool_write_file(Agent *a, cJSON *args, Str *out, char *err, size_t errcap)
 {
     char path[A98_MAX_PATH];
     char dir[A98_MAX_PATH];
     const char *user;
     const char *content;
+    const char *payload;
+    char *local = NULL;
     size_t len;
+    size_t payload_len;
     size_t written = 0;
     int text_mode;
+    int converted_encoding = 0;
     FILE *f;
 
     user = arg_str(args, "path", NULL);
@@ -369,9 +435,20 @@ static int tool_write_file(Agent *a, cJSON *args, Str *out, char *err, size_t er
         set_err(err, errcap, "cannot write %s", user);
         return -1;
     }
+    payload = content;
+    payload_len = len;
     if (text_mode) {
-        if (write_text_dos(f, content, len, &written) != 0) {
+        local = utf8_to_local_lossless(content);
+        if (local != NULL) {
+            payload = local;
+            payload_len = strlen(local);
+            converted_encoding = strcmp(local, content) != 0;
+        }
+    }
+    if (text_mode) {
+        if (write_text_dos(f, payload, payload_len, &written) != 0) {
             fclose(f);
+            a98_free(local);
             set_err(err, errcap, "short write to %s", user);
             return -1;
         }
@@ -384,10 +461,16 @@ static int tool_write_file(Agent *a, cJSON *args, Str *out, char *err, size_t er
         written = len;
     }
     fclose(f);
-    if (written != len) {
-        log_info("write_file: converted line endings to CRLF (%lu -> %lu bytes): %s",
-                 (unsigned long)len, (unsigned long)written, user);
+    if (converted_encoding) {
+        log_info("write_file: converted UTF-8 to code page %u (%lu -> %lu bytes): %s",
+                 (unsigned)GetACP(), (unsigned long)len,
+                 (unsigned long)payload_len, user);
     }
+    if (written != payload_len) {
+        log_info("write_file: converted line endings to CRLF (%lu -> %lu bytes): %s",
+                 (unsigned long)payload_len, (unsigned long)written, user);
+    }
+    a98_free(local);
     str_appendf(out, "Wrote %lu bytes to %s\n", (unsigned long)written, user);
     return 0;
 }
@@ -747,7 +830,7 @@ static const char schema_read_file[] =
 static const char schema_write_file[] =
     "{\"type\":\"object\",\"properties\":{"
     "\"path\":{\"type\":\"string\",\"description\":\"File path relative to the workspace.\"},"
-    "\"content\":{\"type\":\"string\",\"description\":\"Full UTF-8 content to write. Line endings are converted to DOS CRLF for text files.\"}},"
+    "\"content\":{\"type\":\"string\",\"description\":\"Full UTF-8 content to write. Text files are stored in the local ANSI code page with DOS CRLF line endings.\"}},"
     "\"required\":[\"path\",\"content\"]}";
 
 static const char schema_search[] =
@@ -767,9 +850,9 @@ static const char schema_run_command[] =
 static const ToolDef g_tools[] = {
     {"list_dir", "List files and directories inside the workspace.",
      schema_list_dir, 0, tool_list_dir},
-    {"read_file", "Read a UTF-8 text file from the workspace, optionally a line range.",
+    {"read_file", "Read a text file from the workspace (converted to UTF-8), optionally a line range.",
      schema_read_file, 0, tool_read_file},
-    {"write_file", "Write a UTF-8 text file in the workspace. Requires user approval.",
+    {"write_file", "Write a text file in the workspace using the local ANSI code page and DOS line endings. Requires user approval.",
      schema_write_file, 1, tool_write_file},
     {"search_files", "Search text files under a workspace directory for a literal string.",
      schema_search, 0, tool_search_files},

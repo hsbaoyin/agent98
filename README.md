@@ -163,7 +163,7 @@ is written to `agent98.log` in the same directory.
 
 All fields are saved to `agent98.ini`.
 
-#### Network retries and line endings
+#### Network retries and text encoding
 
 `api_chat` retries transient failures up to twice (1 s, then 2 s backoff):
 
@@ -174,10 +174,18 @@ Every retry is logged to `agent98.log` at WARN level. If part of a streamed
 answer has already been displayed, no retry happens, so text is never
 duplicated; Ctrl+C still cancels immediately during the backoff.
 
-When writing text files, `write_file` normalises bare `\n` to DOS `\r\n` and
-never doubles an existing `\r\n`. This is what lets a generated `.BAT` / `.CMD`
-run line by line under the 16-bit `COMMAND.COM` of Windows 9x. Binary
+`write_file` converts the model's UTF-8 content to the local ANSI code page
+(CP_ACP, GBK on a Simplified Chinese system) so Notepad, EDIT and
+`COMMAND.COM` display it correctly, and falls back to raw UTF-8 when the code
+page cannot represent a character. It also normalises bare `\n` to DOS `\r\n`
+without doubling an existing `\r\n`, which is what lets a generated `.BAT` /
+`.CMD` run line by line under the 16-bit `COMMAND.COM` of Windows 9x. Binary
 extensions such as `.EXE`, `.DLL` and `.ZIP` keep their exact bytes.
+
+`read_file` validates the bytes first: valid UTF-8 is returned as is (a UTF-8
+BOM is dropped), while anything else is treated as CP_ACP and converted to
+UTF-8, so the model can read files produced by Win9x applications without
+mojibake.
 
 #### Runtime environment injection
 
@@ -446,7 +454,7 @@ level=3
 
 所有字段保存到 `agent98.ini`。
 
-#### 网络重试与文本换行
+#### 网络重试与文本编码
 
 `api_chat` 对瞬时故障自动重试，最多 2 次（1 秒、2 秒退避）：
 
@@ -456,10 +464,16 @@ level=3
 每次重试都会写入 `agent98.log`（WARN 级别）。如果流式回复已经把部分文字
 显示出来，就不再重试，避免内容重复；退避期间按 Ctrl+C 也能立即取消。
 
-`write_file` 写文本文件时会把孤立的 `\n` 规范化为 DOS 的 `\r\n`，已有的
-`\r\n` 不会重复转换。这样模型生成的 `.BAT` / `.CMD` 才能在 Windows 9x 的
-16 位 `COMMAND.COM` 下逐行执行；`.EXE`、`.DLL`、`.ZIP` 等二进制扩展名
-保持原始字节。
+`write_file` 会把模型传入的 UTF-8 文本转换为系统当前代码页（CP_ACP，
+简体中文下为 GBK）再落盘，这样 Win98/Me 的记事本、EDIT 和 `COMMAND.COM`
+都能正确显示；如果遇到当前代码页无法表示的字符，则回退为原始 UTF-8。
+同时把孤立的 `\n` 规范化为 DOS 的 `\r\n`，已有的 `\r\n` 不会重复转换，
+保证生成的 `.BAT` / `.CMD` 能在 16 位 `COMMAND.COM` 下逐行执行。
+`.EXE`、`.DLL`、`.ZIP` 等二进制扩展名保持原始字节。
+
+`read_file` 先校验内容是否为合法 UTF-8：是则原样返回（并去掉 UTF-8 BOM），
+否则按 CP_ACP 解码后再转成 UTF-8 交给模型，因此读取 Win9x 本地程序生成的
+GBK 文件也不会乱码。
 
 #### 运行时环境注入
 

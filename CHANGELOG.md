@@ -7,6 +7,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `write_file` converts UTF-8 content to the local ANSI code page (CP_ACP,
+  GBK on Simplified Chinese systems) before writing, so text files open
+  correctly in Win98/Me Notepad, EDIT and `COMMAND.COM`. Conversion falls
+  back to raw UTF-8 when the code page cannot represent a character.
+- `read_file` auto-detects the encoding: valid UTF-8 is returned as is (a
+  UTF-8 BOM is stripped), anything else is converted from CP_ACP to UTF-8,
+  so GBK files created by Win9x applications are readable by the model.
 - `write_file` converts bare LF line endings to DOS CRLF for text files
   (`.bat`, `.cmd`, `.ini`, `.txt`, `.asm`, `.c`, `.h` and any unknown
   extension); binaries keep their bytes untouched. Windows Me's 16-bit
