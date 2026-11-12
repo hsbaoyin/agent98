@@ -44,6 +44,20 @@ AGENT98.LOG    运行日志，出问题时请看这个文件
 5. 回到主窗口，在下方输入框提问
 
 
+GUI 功能
+--------
+- 对话区使用 9 磅等宽字体（Fixedsys；中文系统为 NSimSun），并按语义
+  着色：You: 深蓝加粗、[round] 灰色、[tool] 深青、[result] 深绿、
+  [error] 红色。
+- 顶部 History 下拉框列出 exe 同目录 sessions\ 中的会话；每次请求完成后
+  自动保存为 YYYYMMDD_HHMM_<首条消息>.json，选择条目即可重新载入，
+  New 开始新会话。
+- 输入框中 Alt+Up / Alt+Down 按 DOSKEY 方式翻阅本次运行的提示历史。
+- File -> Export transcript...（Ctrl+E）把当前对话导出为 GBK 编码、
+  CRLF 换行的文本，可直接用记事本打开。
+- 原生状态栏在请求运行期间显示旋转指示和当前轮数，并显示 workspace。
+- Tools -> Open workspace（或 Workspace 按钮）打开 workspace 目录。
+
 命令行版
 --------
   A98.EXE
@@ -89,3 +103,5 @@ A: 先确认程序是从硬盘运行的，然后把 AGENT98.LOG 的最后几十行发出来。
        连续 3 次重复调用由循环保护拦截，避免空转消耗额度。
        写文本文件自动转 GBK 代码页、读文件自动识别 UTF-8/GBK，
        Win98/Me 记事本与 COMMAND.COM 不再显示乱码。
+       GUI：彩色等宽对话区、会话历史下拉框、自动保存、Alt+Up/Down
+       提示历史、导出文本、状态栏和打开 workspace。

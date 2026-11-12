@@ -105,6 +105,11 @@ function Write-LinkFile($path, $name, $subsystem, $list, $resource) {
     $link.Add('library user32.lib')
     $link.Add('library gdi32.lib')
     $link.Add('library comdlg32.lib')
+    if ($subsystem -eq 'nt_win') {
+        # Status bar common control and ShellExecuteA for "Open workspace".
+        $link.Add('library comctl32.lib')
+        $link.Add('library shell32.lib')
+    }
     Set-Content -Path $path -Value $link -Encoding ascii
 }
 

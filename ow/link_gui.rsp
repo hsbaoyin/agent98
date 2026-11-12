@@ -307,3 +307,5 @@ library advapi32.lib
 library user32.lib
 library gdi32.lib
 library comdlg32.lib
+library comctl32.lib
+library shell32.lib

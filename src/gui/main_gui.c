@@ -8,10 +8,13 @@
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <commctrl.h>
 #include <commdlg.h>
+#include <shellapi.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #ifdef __WATCOMC__
 /* The OpenWatcom runtime needs its thread bookkeeping (per-thread data,
@@ -33,6 +36,9 @@
 #include "../net/http.h"
 #include "../net/net.h"
 #include "../net/url.h"
+#include "../../third_party/cjson/cJSON.h"
+
+#include <richedit.h>
 
 #ifndef EM_EXLIMITTEXT
 #define EM_EXLIMITTEXT (WM_USER + 37)
@@ -52,6 +58,24 @@
 
 #define TRANSCRIPT_LIMIT 0x7FFFFFFEL
 
+/* Timer used for the retro spinner in the status bar. */
+#define IDT_SPINNER 1
+
+#define A98_MAX_SESSIONS 64
+#define A98_MAX_HISTORY  64
+
+#define A98_TRANSCRIPT_POINTS 9
+#define A98_TWIPS_PER_POINT   20
+
+/* 90s console palette.  Dark, saturated colours read well on the default
+ * white RichEdit background and stay legible on Win9x VGA displays. */
+#define COL_YOU    RGB(0, 0, 160)
+#define COL_ROUND  RGB(100, 100, 100)
+#define COL_TOOL   RGB(0, 110, 110)
+#define COL_RESULT RGB(0, 120, 0)
+#define COL_ERROR  RGB(200, 0, 0)
+#define COL_AI     RGB(0, 0, 0)
+
 typedef struct {
     int type;
     char *text;
@@ -65,6 +89,11 @@ typedef struct {
 } ConfirmReq;
 
 typedef struct {
+    char name[64];              /* display name (ACP, without .json) */
+    char path[A98_MAX_PATH];    /* full path (ACP) */
+} SessionEntry;
+
+typedef struct {
     HINSTANCE hinst;
     HWND hwnd;
     HWND transcript;
@@ -73,16 +102,25 @@ typedef struct {
     HWND stop;
     HWND newbtn;
     HWND settings;
-    HWND status;
+    HWND workspace_btn;
+    HWND session_label;
+    HWND session_combo;
+    HWND statusbar;
     HFONT font;
+    HFONT mono_font;
     HACCEL accel;
 
     int rich;               /* 0 = EDIT, 1 = RichEdit 1.0, 2 = RichEdit 2.0 */
     HINSTANCE rich_dll;
+    char mono_face[LF_FACESIZE];
 
     Config cfg;
     char ini_path[A98_MAX_PATH];
     char exe_dir[A98_MAX_PATH];
+    char sessions_dir[A98_MAX_PATH];
+    char session_path[A98_MAX_PATH]; /* current auto-save target (ACP) */
+    SessionEntry sessions[A98_MAX_SESSIONS];
+    int session_count;
     Agent agent;
 
     HANDLE thread;
@@ -91,6 +129,14 @@ typedef struct {
     volatile int cancel;
     volatile int running;
     int closing;
+
+    int spin_frame;
+    int round_no;
+    char status_line[128];      /* UTF-8, without the spinner */
+
+    char *input_history[A98_MAX_HISTORY];
+    int input_history_count;
+    int input_history_pos;
 } App;
 
 static App g_app;
@@ -260,12 +306,54 @@ static char *absolute_path_utf8(const char *utf8)
 /* Transcript                                                          */
 /* ------------------------------------------------------------------ */
 
-static void transcript_append(App *app, const char *utf8)
+static void transcript_apply_format(App *app, LONG start, LONG end,
+                                    COLORREF color, int bold)
+{
+    CHARRANGE cr;
+
+    if (app == NULL || app->transcript == NULL || app->rich == 0) {
+        return;
+    }
+    if (end < start) {
+        LONG tmp = start;
+        start = end;
+        end = tmp;
+    }
+    cr.cpMin = start;
+    cr.cpMax = end;
+    SendMessageA(app->transcript, EM_EXSETSEL, 0, (LPARAM)&cr);
+
+    if (app->rich == 2) {
+        CHARFORMAT2A cf;
+        memset(&cf, 0, sizeof(cf));
+        cf.cbSize = sizeof(cf);
+        cf.dwMask = CFM_COLOR | CFM_BOLD;
+        cf.dwEffects = bold ? CFE_BOLD : 0;
+        cf.crTextColor = color;
+        SendMessageA(app->transcript, EM_SETCHARFORMAT, SCF_SELECTION,
+                     (LPARAM)&cf);
+    } else {
+        CHARFORMAT cf;
+        memset(&cf, 0, sizeof(cf));
+        cf.cbSize = sizeof(cf);
+        cf.dwMask = CFM_COLOR | CFM_BOLD;
+        cf.dwEffects = bold ? CFE_BOLD : 0;
+        cf.crTextColor = color;
+        SendMessageA(app->transcript, EM_SETCHARFORMAT, SCF_SELECTION,
+                     (LPARAM)&cf);
+    }
+}
+
+/* Append UTF-8 text, normalising LF to CRLF, and give the inserted range a
+ * character format.  On plain EDIT controls the text is appended uncoloured. */
+static void transcript_append_colored(App *app, const char *utf8,
+                                      COLORREF color, int bold)
 {
     Str s;
     size_t i;
     char *acp;
-    int len;
+    LONG start;
+    LONG end;
 
     if (app == NULL || app->transcript == NULL || utf8 == NULL) {
         return;
@@ -286,35 +374,156 @@ static void transcript_append(App *app, const char *utf8)
     if (acp == NULL) {
         return;
     }
-    len = GetWindowTextLengthA(app->transcript);
-    SendMessageA(app->transcript, EM_SETSEL, (WPARAM)len, (LPARAM)len);
-    SendMessageA(app->transcript, EM_REPLACESEL, (WPARAM)FALSE, (LPARAM)acp);
-    SendMessageA(app->transcript, EM_SCROLLCARET, 0, 0);
+
+    if (app->rich == 0) {
+        int len = GetWindowTextLengthA(app->transcript);
+        SendMessageA(app->transcript, EM_SETSEL, (WPARAM)len, (LPARAM)len);
+        SendMessageA(app->transcript, EM_REPLACESEL, (WPARAM)FALSE,
+                     (LPARAM)acp);
+        SendMessageA(app->transcript, EM_SCROLLCARET, 0, 0);
+        a98_free(acp);
+        return;
+    }
+
+    {
+        CHARRANGE cr;
+        /* Move to the end.  Whether the control collapses the selection or
+         * selects everything, cpMax is the end of the text. */
+        SendMessageA(app->transcript, EM_SETSEL, (WPARAM)-1, (LPARAM)-1);
+        SendMessageA(app->transcript, EM_EXGETSEL, 0, (LPARAM)&cr);
+        cr.cpMin = cr.cpMax;
+        SendMessageA(app->transcript, EM_EXSETSEL, 0, (LPARAM)&cr);
+        start = cr.cpMax;
+
+        SendMessageA(app->transcript, EM_REPLACESEL, (WPARAM)FALSE,
+                     (LPARAM)acp);
+        SendMessageA(app->transcript, EM_EXGETSEL, 0, (LPARAM)&cr);
+        end = cr.cpMax;
+
+        transcript_apply_format(app, start, end, color, bold);
+
+        cr.cpMin = end;
+        cr.cpMax = end;
+        SendMessageA(app->transcript, EM_EXSETSEL, 0, (LPARAM)&cr);
+        SendMessageA(app->transcript, EM_SCROLLCARET, 0, 0);
+    }
     a98_free(acp);
+}
+
+static void transcript_append(App *app, const char *utf8)
+{
+    transcript_append_colored(app, utf8, COL_AI, 0);
+}
+
+static void transcript_line_colored(App *app, const char *prefix,
+                                    COLORREF prefix_color, int prefix_bold,
+                                    const char *text, COLORREF text_color,
+                                    int text_bold)
+{
+    transcript_append_colored(app, prefix != NULL ? prefix : "",
+                              prefix_color, prefix_bold);
+    transcript_append_colored(app, text != NULL ? text : "",
+                              text_color, text_bold);
+    transcript_append_colored(app, "\r\n", text_color, 0);
 }
 
 static void transcript_line(App *app, const char *prefix, const char *text)
 {
-    Str s;
+    transcript_line_colored(app, prefix, COL_AI, 0, text, COL_AI, 0);
+}
 
-    str_init(&s);
-    str_append_cstr(&s, prefix != NULL ? prefix : "");
-    str_append_cstr(&s, text != NULL ? text : "");
-    str_append_cstr(&s, "\r\n");
-    transcript_append(app, str_cstr(&s));
-    str_free(&s);
+static void transcript_set_default_format(App *app)
+{
+    if (app == NULL || app->transcript == NULL || app->rich == 0) {
+        return;
+    }
+    if (app->rich == 2) {
+        CHARFORMAT2A cf;
+        memset(&cf, 0, sizeof(cf));
+        cf.cbSize = sizeof(cf);
+        cf.dwMask = CFM_FACE | CFM_SIZE | CFM_COLOR | CFM_CHARSET |
+                    CFM_BOLD;
+        cf.dwEffects = 0;
+        cf.yHeight = A98_TRANSCRIPT_POINTS * A98_TWIPS_PER_POINT;
+        cf.crTextColor = COL_AI;
+        cf.bCharSet = DEFAULT_CHARSET;
+        copy_str(cf.szFaceName, sizeof(cf.szFaceName), app->mono_face);
+        SendMessageA(app->transcript, EM_SETCHARFORMAT, SCF_DEFAULT,
+                     (LPARAM)&cf);
+        SendMessageA(app->transcript, EM_SETCHARFORMAT, SCF_ALL,
+                     (LPARAM)&cf);
+    } else {
+        CHARFORMAT cf;
+        memset(&cf, 0, sizeof(cf));
+        cf.cbSize = sizeof(cf);
+        cf.dwMask = CFM_FACE | CFM_SIZE | CFM_COLOR | CFM_CHARSET |
+                    CFM_BOLD;
+        cf.dwEffects = 0;
+        cf.yHeight = A98_TRANSCRIPT_POINTS * A98_TWIPS_PER_POINT;
+        cf.crTextColor = COL_AI;
+        cf.bCharSet = DEFAULT_CHARSET;
+        copy_str(cf.szFaceName, sizeof(cf.szFaceName), app->mono_face);
+        SendMessageA(app->transcript, EM_SETCHARFORMAT, SCF_DEFAULT,
+                     (LPARAM)&cf);
+        SendMessageA(app->transcript, EM_SETCHARFORMAT, SCF_ALL,
+                     (LPARAM)&cf);
+    }
 }
 
 static void transcript_clear(App *app)
 {
     if (app != NULL && app->transcript != NULL) {
         SetWindowTextA(app->transcript, "");
+        transcript_set_default_format(app);
     }
+}
+
+static void render_tool_calls(App *app, const char *json)
+{
+    cJSON *arr;
+    cJSON *item;
+
+    if (json == NULL || json[0] == '\0') {
+        return;
+    }
+    arr = cJSON_Parse(json);
+    if (arr == NULL) {
+        return;
+    }
+    if (!cJSON_IsArray(arr)) {
+        cJSON_Delete(arr);
+        return;
+    }
+    cJSON_ArrayForEach(item, arr) {
+        cJSON *fn = cJSON_GetObjectItemCaseSensitive(item, "function");
+        const char *name = NULL;
+        const char *args = NULL;
+        Str s;
+
+        if (cJSON_IsObject(fn)) {
+            cJSON *n = cJSON_GetObjectItemCaseSensitive(fn, "name");
+            cJSON *a = cJSON_GetObjectItemCaseSensitive(fn, "arguments");
+            if (cJSON_IsString(n) && n->valuestring != NULL) {
+                name = n->valuestring;
+            }
+            if (cJSON_IsString(a) && a->valuestring != NULL) {
+                args = a->valuestring;
+            }
+        }
+        str_init(&s);
+        str_appendf(&s, "%s(%s)", name != NULL ? name : "tool",
+                    args != NULL ? args : "{}");
+        transcript_line_colored(app, "[tool] ", COL_TOOL, 0,
+                                str_cstr(&s), COL_TOOL, 0);
+        str_free(&s);
+    }
+    cJSON_Delete(arr);
 }
 
 static void render_history(App *app)
 {
     int i;
+    int round = 0;
 
     if (app == NULL) {
         return;
@@ -323,47 +532,113 @@ static void render_history(App *app)
     for (i = 0; i < app->agent.messages.count; i++) {
         Message *m = &app->agent.messages.items[i];
         if (m->role == MSG_USER) {
-            transcript_line(app, "You: ", m->content != NULL ? m->content : "");
+            transcript_line_colored(app, "You: ", COL_YOU, 1,
+                                    m->content != NULL ? m->content : "",
+                                    COL_AI, 0);
         } else if (m->role == MSG_ASSISTANT) {
+            char roundbuf[64];
+
+            round++;
+            sprintf(roundbuf, "History (round %d)", round);
+            transcript_line_colored(app, "\r\n[round] ", COL_ROUND, 0,
+                                    roundbuf, COL_ROUND, 0);
             if (m->content != NULL && m->content[0] != '\0') {
-                transcript_line(app, "Assistant: ",
-                                m->content);
+                transcript_line_colored(app, "Assistant: ", COL_AI, 1,
+                                        m->content, COL_AI, 0);
             }
+            render_tool_calls(app, m->tool_calls_json);
         } else if (m->role == MSG_TOOL) {
-            transcript_line(app, "[tool result] ",
-                            m->content != NULL ? m->content : "");
+            transcript_line_colored(app, "[result] ", COL_RESULT, 0,
+                                    m->content != NULL ? m->content : "",
+                                    COL_RESULT, 0);
         }
         transcript_append(app, "\r\n");
     }
 }
 
 /* ------------------------------------------------------------------ */
-/* Status and control state                                            */
+/* Status bar and control state                                        */
 /* ------------------------------------------------------------------ */
+
+/* Most GUI strings are UTF-8, but a workspace path read straight from the
+ * INI is raw ACP.  Accept either representation and convert as needed. */
+static char *path_to_acp(const char *s)
+{
+    if (s == NULL) {
+        return NULL;
+    }
+    if (a98_utf8_valid(s, strlen(s))) {
+        return a98_utf8_to_acp(s);
+    }
+    return a98_strdup(s);
+}
+
+static char *path_to_utf8(const char *s)
+{
+    if (s == NULL) {
+        return NULL;
+    }
+    if (a98_utf8_valid(s, strlen(s))) {
+        return a98_strdup(s);
+    }
+    return a98_acp_to_utf8(s);
+}
+
+static void status_update(App *app)
+{
+    char buf[512];
+    char *acp;
+    static const char spin[] = "|/-\\";
+    char c;
+
+    if (app == NULL || app->statusbar == NULL) {
+        return;
+    }
+    if (app->running) {
+        c = spin[app->spin_frame & 3];
+        snprintf(buf, sizeof(buf), "[ %c ] %s", c,
+                 app->status_line[0] != '\0' ? app->status_line : "Running");
+    } else {
+        snprintf(buf, sizeof(buf), "[ - ] %s",
+                 app->status_line[0] != '\0' ? app->status_line : "Ready");
+    }
+    acp = a98_utf8_to_acp(buf);
+    SendMessageA(app->statusbar, SB_SETTEXT, 0, (LPARAM)(acp != NULL ? acp : ""));
+    a98_free(acp);
+
+    acp = path_to_acp(app->cfg.workspace);
+    snprintf(buf, sizeof(buf), "Workspace: %s", acp != NULL ? acp : "");
+    SendMessageA(app->statusbar, SB_SETTEXT, 1, (LPARAM)buf);
+    a98_free(acp);
+}
+
+static void status_set(App *app, const char *utf8)
+{
+    if (app == NULL) {
+        return;
+    }
+    copy_str(app->status_line, sizeof(app->status_line),
+             utf8 != NULL ? utf8 : "");
+    status_update(app);
+}
 
 static void update_status(App *app)
 {
-    Str s;
-    char *acp;
     char title[256];
+    char *m;
 
-    if (app == NULL || app->status == NULL) {
+    if (app == NULL) {
         return;
     }
-    str_init(&s);
-    str_appendf(&s, "%s  |  %s  |  workspace: %s",
-                app->cfg.model, app->cfg.api_base, app->cfg.workspace);
-    acp = a98_utf8_to_acp(str_cstr(&s));
-    str_free(&s);
-    SetWindowTextA(app->status, acp != NULL ? acp : "");
-    a98_free(acp);
-
-    {
-        char *m = a98_utf8_to_acp(app->cfg.model);
-        snprintf(title, sizeof(title), "Agent98 - %s", m != NULL ? m : "");
-        a98_free(m);
-        SetWindowTextA(app->hwnd, title);
+    if (!app->running && app->status_line[0] == '\0') {
+        copy_str(app->status_line, sizeof(app->status_line), "Ready");
     }
+    status_update(app);
+
+    m = a98_utf8_to_acp(app->cfg.model);
+    snprintf(title, sizeof(title), "Agent98 - %s", m != NULL ? m : "");
+    a98_free(m);
+    SetWindowTextA(app->hwnd, title);
 }
 
 static void set_running(App *app, int running)
@@ -377,9 +652,286 @@ static void set_running(App *app, int running)
     EnableWindow(app->stop, running);
     EnableWindow(app->newbtn, !running);
     EnableWindow(app->settings, !running);
+    EnableWindow(app->session_combo, !running);
     if (!running) {
+        copy_str(app->status_line, sizeof(app->status_line), "Ready");
+        status_update(app);
         SetFocus(app->input);
     }
+}
+
+/* ------------------------------------------------------------------ */
+/* DOSKEY-style prompt history                                         */
+/* ------------------------------------------------------------------ */
+
+static void input_set_text(App *app, const char *utf8)
+{
+    char *acp;
+    int len;
+
+    if (app == NULL || app->input == NULL) {
+        return;
+    }
+    acp = a98_utf8_to_acp(utf8 != NULL ? utf8 : "");
+    SetWindowTextA(app->input, acp != NULL ? acp : "");
+    a98_free(acp);
+    len = GetWindowTextLengthA(app->input);
+    SendMessageA(app->input, EM_SETSEL, (WPARAM)len, (LPARAM)len);
+}
+
+static void input_history_add(App *app, const char *utf8)
+{
+    int i;
+
+    if (app == NULL || utf8 == NULL || utf8[0] == '\0') {
+        return;
+    }
+    if (app->input_history_count > 0 &&
+        strcmp(app->input_history[app->input_history_count - 1], utf8) == 0) {
+        app->input_history_pos = app->input_history_count;
+        return;
+    }
+    if (app->input_history_count >= A98_MAX_HISTORY) {
+        a98_free(app->input_history[0]);
+        for (i = 1; i < A98_MAX_HISTORY; i++) {
+            app->input_history[i - 1] = app->input_history[i];
+        }
+        app->input_history_count--;
+    }
+    app->input_history[app->input_history_count] = a98_strdup(utf8);
+    if (app->input_history[app->input_history_count] != NULL) {
+        app->input_history_count++;
+    }
+    app->input_history_pos = app->input_history_count;
+}
+
+static void input_history_nav(App *app, int direction)
+{
+    if (app == NULL || app->input_history_count == 0) {
+        return;
+    }
+    if (direction < 0) {
+        if (app->input_history_pos > 0) {
+            app->input_history_pos--;
+        }
+        input_set_text(app, app->input_history[app->input_history_pos]);
+    } else {
+        if (app->input_history_pos < app->input_history_count - 1) {
+            app->input_history_pos++;
+            input_set_text(app, app->input_history[app->input_history_pos]);
+        } else {
+            app->input_history_pos = app->input_history_count;
+            input_set_text(app, "");
+        }
+    }
+}
+
+/* ------------------------------------------------------------------ */
+/* Session history                                                     */
+/* ------------------------------------------------------------------ */
+
+static void session_scan(App *app)
+{
+    char pattern[A98_MAX_PATH];
+    WIN32_FIND_DATAA fd;
+    HANDLE h;
+    int i;
+    int j;
+    SessionEntry tmp;
+
+    if (app == NULL) {
+        return;
+    }
+    app->session_count = 0;
+    a98_path_mkdirs(app->sessions_dir);
+    if (a98_path_join(pattern, sizeof(pattern), app->sessions_dir,
+                      "*.json") != 0) {
+        return;
+    }
+    h = FindFirstFileA(pattern, &fd);
+    if (h == INVALID_HANDLE_VALUE) {
+        return;
+    }
+    do {
+        size_t len;
+
+        if ((fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0) {
+            continue;
+        }
+        if (app->session_count >= A98_MAX_SESSIONS) {
+            break;
+        }
+        copy_str(app->sessions[app->session_count].name,
+                 sizeof(app->sessions[app->session_count].name),
+                 fd.cFileName);
+        len = strlen(app->sessions[app->session_count].name);
+        if (len > 5 &&
+            a98_strcasecmp(app->sessions[app->session_count].name + len - 5,
+                           ".json") == 0) {
+            app->sessions[app->session_count].name[len - 5] = '\0';
+        }
+        a98_path_join(app->sessions[app->session_count].path,
+                      sizeof(app->sessions[app->session_count].path),
+                      app->sessions_dir, fd.cFileName);
+        app->session_count++;
+    } while (FindNextFileA(h, &fd));
+    FindClose(h);
+
+    /* Newest first: the filename starts with YYYYMMDD_HHMM. */
+    for (i = 1; i < app->session_count; i++) {
+        tmp = app->sessions[i];
+        j = i - 1;
+        while (j >= 0 && strcmp(app->sessions[j].name, tmp.name) < 0) {
+            app->sessions[j + 1] = app->sessions[j];
+            j--;
+        }
+        app->sessions[j + 1] = tmp;
+    }
+}
+
+static void session_combo_fill(App *app, const char *select_path)
+{
+    int i;
+    int sel = -1;
+
+    if (app == NULL || app->session_combo == NULL) {
+        return;
+    }
+    SendMessageA(app->session_combo, CB_RESETCONTENT, 0, 0);
+    for (i = 0; i < app->session_count; i++) {
+        SendMessageA(app->session_combo, CB_ADDSTRING, 0,
+                     (LPARAM)app->sessions[i].name);
+        if (select_path != NULL &&
+            strcmp(app->sessions[i].path, select_path) == 0) {
+            sel = i;
+        }
+    }
+    SendMessageA(app->session_combo, CB_SETCURSEL, (WPARAM)sel, 0);
+}
+
+static void sanitize_session_summary(const char *acp, char *out, size_t cap)
+{
+    size_t o = 0;
+    size_t i = 0;
+    CPINFO cpi;
+    int dbcs;
+
+    if (out == NULL || cap == 0) {
+        return;
+    }
+    /* Only pair bytes on DBCS code pages (GBK, Shift-JIS, ...).  On a
+     * single-byte code page 0xE9 is a letter, not a lead byte. */
+    dbcs = (GetCPInfo(GetACP(), &cpi) != 0 && cpi.MaxCharSize > 1);
+    while (acp != NULL && acp[i] != '\0' && o + 1 < cap && o < 32) {
+        unsigned char c = (unsigned char)acp[i];
+
+        if (c < 0x20) {
+            i++;
+            continue;
+        }
+        if (c == '\\' || c == '/' || c == ':' || c == '*' || c == '?' ||
+            c == '"' || c == '<' || c == '>' || c == '|') {
+            i++;
+            continue;
+        }
+        if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
+            if (o > 0 && out[o - 1] != '_') {
+                out[o++] = '_';
+            }
+            i++;
+            continue;
+        }
+        if (c >= 0x81 && dbcs) {
+            /* Keep DBCS pairs (GBK/Shift-JIS) intact. */
+            if (acp[i + 1] == '\0' || o + 2 >= cap) {
+                break;
+            }
+            out[o++] = acp[i++];
+            out[o++] = acp[i++];
+        } else {
+            out[o++] = acp[i++];
+        }
+    }
+    while (o > 0 && (out[o - 1] == '_' || out[o - 1] == ' ')) {
+        o--;
+    }
+    out[o] = '\0';
+    if (o == 0) {
+        copy_str(out, cap, "session");
+    }
+}
+
+static int build_session_path(App *app)
+{
+    const char *first = NULL;
+    char *acp = NULL;
+    char summary[64];
+    char stamp[32];
+    char name[128];
+    char candidate[A98_MAX_PATH];
+    time_t now;
+    struct tm *tmv;
+    int i;
+
+    if (app == NULL) {
+        return -1;
+    }
+    for (i = 0; i < app->agent.messages.count; i++) {
+        if (app->agent.messages.items[i].role == MSG_USER) {
+            first = app->agent.messages.items[i].content;
+            break;
+        }
+    }
+    now = time(NULL);
+    tmv = localtime(&now);
+    if (tmv != NULL) {
+        sprintf(stamp, "%04d%02d%02d_%02d%02d",
+                tmv->tm_year + 1900, tmv->tm_mon + 1, tmv->tm_mday,
+                tmv->tm_hour, tmv->tm_min);
+    } else {
+        copy_str(stamp, sizeof(stamp), "session");
+    }
+    acp = a98_utf8_to_acp(first != NULL ? first : "");
+    sanitize_session_summary(acp, summary, sizeof(summary));
+    a98_free(acp);
+
+    snprintf(name, sizeof(name), "%s_%s.json", stamp, summary);
+    a98_path_join(candidate, sizeof(candidate), app->sessions_dir, name);
+    if (a98_path_exists(candidate) &&
+        strcmp(candidate, app->session_path) != 0) {
+        for (i = 2; i < 100; i++) {
+            snprintf(name, sizeof(name), "%s_%s_%d.json", stamp, summary, i);
+            a98_path_join(candidate, sizeof(candidate), app->sessions_dir,
+                          name);
+            if (!a98_path_exists(candidate)) {
+                break;
+            }
+        }
+    }
+    copy_str(app->session_path, sizeof(app->session_path), candidate);
+    return 0;
+}
+
+static void auto_save_session(App *app)
+{
+    char err[512];
+
+    if (app == NULL || app->agent.messages.count == 0) {
+        return;
+    }
+    if (app->session_path[0] == '\0') {
+        if (build_session_path(app) != 0) {
+            return;
+        }
+    }
+    err[0] = '\0';
+    if (agent_save_session(&app->agent, app->session_path, err,
+                           sizeof(err)) != 0) {
+        log_warn("GUI auto-save failed: %s", err);
+        return;
+    }
+    session_scan(app);
+    session_combo_fill(app, app->session_path);
 }
 
 /* ------------------------------------------------------------------ */
@@ -509,16 +1061,20 @@ static void do_send(App *app)
         return;
     }
 
+    input_history_add(app, text);
     SetWindowTextA(app->input, "");
+    app->input_history_pos = app->input_history_count;
     transcript_append(app, "\r\n");
-    transcript_line(app, "You: ", text);
+    transcript_line_colored(app, "You: ", COL_YOU, 1, text, COL_AI, 0);
     transcript_append(app, "\r\n");
 
     app->pending_input = text;
     app->cancel = 0;
     app->closing = 0;
+    app->round_no = 0;
+    app->spin_frame = 0;
     set_running(app, 1);
-    SetWindowTextA(app->status, "Connecting...");
+    status_set(app, "Connecting...");
 
 #ifdef __WATCOMC__
     {
@@ -553,7 +1109,7 @@ static void do_stop(App *app)
         return;
     }
     app->cancel = 1;
-    SetWindowTextA(app->status, "Cancelling...");
+    status_set(app, "Cancelling...");
 }
 
 static void do_new(App *app)
@@ -567,7 +1123,12 @@ static void do_new(App *app)
         return;
     }
     agent_new_conversation(&app->agent);
+    app->session_path[0] = '\0';
+    app->round_no = 0;
+    app->spin_frame = 0;
     transcript_clear(app);
+    session_combo_fill(app, NULL);
+    status_set(app, "Ready");
     update_status(app);
 }
 
@@ -614,10 +1175,20 @@ static void do_save(App *app)
     }
     err[0] = '\0';
     if (agent_save_session(&app->agent, path, err, sizeof(err)) == 0) {
-        transcript_line(app, "[info] Session saved: ", path);
+        char *u = a98_acp_to_utf8(path);
+        copy_str(app->session_path, sizeof(app->session_path), path);
+        session_scan(app);
+        session_combo_fill(app, app->session_path);
+        transcript_line_colored(app, "\r\n[info] Session saved: ",
+                                COL_ROUND, 0, u != NULL ? u : "",
+                                COL_ROUND, 0);
+        a98_free(u);
+        status_set(app, "Session saved");
     } else {
         char *u = a98_acp_to_utf8(err[0] ? err : "unknown error");
-        transcript_line(app, "[error] Save failed: ", u != NULL ? u : "");
+        transcript_line_colored(app, "\r\n[error] Save failed: ",
+                                COL_ERROR, 1, u != NULL ? u : "",
+                                COL_ERROR, 0);
         a98_free(u);
     }
 }
@@ -637,13 +1208,183 @@ static void do_load(App *app)
     }
     err[0] = '\0';
     if (agent_load_session(&app->agent, path, err, sizeof(err)) == 0) {
+        char *u = a98_acp_to_utf8(path);
+        copy_str(app->session_path, sizeof(app->session_path), path);
         render_history(app);
-        transcript_line(app, "[info] Session loaded: ", path);
+        session_scan(app);
+        session_combo_fill(app, app->session_path);
+        transcript_line_colored(app, "\r\n[info] Session loaded: ",
+                                COL_ROUND, 0, u != NULL ? u : "",
+                                COL_ROUND, 0);
+        a98_free(u);
+        status_set(app, "Session loaded");
     } else {
         char *u = a98_acp_to_utf8(err[0] ? err : "unknown error");
-        transcript_line(app, "[error] Load failed: ", u != NULL ? u : "");
+        transcript_line_colored(app, "\r\n[error] Load failed: ",
+                                COL_ERROR, 1, u != NULL ? u : "",
+                                COL_ERROR, 0);
         a98_free(u);
     }
+}
+
+static void do_session_select(App *app, int idx)
+{
+    char err[512];
+    char *u;
+
+    if (app == NULL) {
+        return;
+    }
+    if (app->running) {
+        msgbox_utf8(app->hwnd, "Stop the current request first.",
+                    MB_OK | MB_ICONINFORMATION);
+        session_combo_fill(app, app->session_path);
+        return;
+    }
+    if (idx < 0 || idx >= app->session_count) {
+        return;
+    }
+    if (strcmp(app->sessions[idx].path, app->session_path) == 0) {
+        return;
+    }
+    err[0] = '\0';
+    if (agent_load_session(&app->agent, app->sessions[idx].path, err,
+                           sizeof(err)) == 0) {
+        u = a98_acp_to_utf8(app->sessions[idx].name);
+        copy_str(app->session_path, sizeof(app->session_path),
+                 app->sessions[idx].path);
+        render_history(app);
+        transcript_line_colored(app, "\r\n[info] Loaded session: ",
+                                COL_ROUND, 0, u != NULL ? u : "",
+                                COL_ROUND, 0);
+        a98_free(u);
+        status_set(app, "Session loaded");
+    } else {
+        u = a98_acp_to_utf8(err[0] ? err : "unknown error");
+        transcript_line_colored(app, "\r\n[error] Load failed: ",
+                                COL_ERROR, 1, u != NULL ? u : "",
+                                COL_ERROR, 0);
+        a98_free(u);
+        session_combo_fill(app, app->session_path);
+    }
+}
+
+static void do_export(App *app)
+{
+    OPENFILENAMEA ofn;
+    char file[A98_MAX_PATH];
+    char *buf;
+    int len;
+    int cap;
+    FILE *f;
+    Str s;
+    size_t i;
+
+    if (app == NULL) {
+        return;
+    }
+    if (app->running) {
+        msgbox_utf8(app->hwnd, "Stop the current request first.",
+                    MB_OK | MB_ICONINFORMATION);
+        return;
+    }
+    file[0] = '\0';
+    memset(&ofn, 0, sizeof(ofn));
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = app->hwnd;
+    ofn.lpstrFilter =
+        "Text files (*.txt)\0*.txt\0All files (*.*)\0*.*\0";
+    ofn.lpstrFile = file;
+    ofn.nMaxFile = sizeof(file);
+    ofn.lpstrTitle = "Export transcript";
+    ofn.lpstrDefExt = "txt";
+    ofn.Flags = OFN_PATHMUSTEXIST | OFN_OVERWRITEPROMPT;
+    if (!GetSaveFileNameA(&ofn)) {
+        return;
+    }
+
+    len = GetWindowTextLengthA(app->transcript);
+    if (len < 0) {
+        len = 0;
+    }
+    /* RichEdit stores paragraph breaks as CR but WM_GETTEXT expands them to
+     * CRLF, so the returned text can be up to twice as long as the length
+     * reported by WM_GETTEXTLENGTH. */
+    cap = len * 2 + 1;
+    buf = (char *)a98_alloc((size_t)cap + 1);
+    if (buf == NULL) {
+        msgbox_utf8(app->hwnd, "Out of memory.", MB_OK | MB_ICONERROR);
+        return;
+    }
+    GetWindowTextA(app->transcript, buf, cap);
+
+    /* The transcript control already holds CP_ACP text.  Normalise the
+     * paragraph separators to CRLF for Win9x Notepad. */
+    str_init(&s);
+    for (i = 0; buf[i] != '\0'; i++) {
+        if (buf[i] == '\r') {
+            if (buf[i + 1] == '\n') {
+                i++;
+            }
+            str_append_cstr(&s, "\r\n");
+        } else if (buf[i] == '\n') {
+            str_append_cstr(&s, "\r\n");
+        } else {
+            str_append_char(&s, buf[i]);
+        }
+    }
+    a98_free(buf);
+
+    f = fopen(file, "wb");
+    if (f == NULL) {
+        char *u = a98_acp_to_utf8(file);
+        char msg[512];
+        snprintf(msg, sizeof(msg), "Cannot write:\n%s",
+                 u != NULL ? u : file);
+        a98_free(u);
+        str_free(&s);
+        msgbox_utf8(app->hwnd, msg, MB_OK | MB_ICONERROR);
+        return;
+    }
+    if (s.len > 0) {
+        fwrite(str_cstr(&s), 1, s.len, f);
+    }
+    fclose(f);
+    str_free(&s);
+
+    {
+        char *u = a98_acp_to_utf8(file);
+        transcript_line_colored(app, "\r\n[info] Transcript exported: ",
+                                COL_ROUND, 0, u != NULL ? u : "",
+                                COL_ROUND, 0);
+        a98_free(u);
+    }
+    status_set(app, "Transcript exported");
+}
+
+static void do_open_workspace(App *app)
+{
+    char *acp;
+    HINSTANCE r;
+
+    if (app == NULL) {
+        return;
+    }
+    acp = path_to_acp(app->cfg.workspace);
+    if (acp == NULL) {
+        return;
+    }
+    a98_path_mkdirs(acp);
+    r = ShellExecuteA(app->hwnd, "open", acp, NULL, NULL, SW_SHOWNORMAL);
+    if ((INT_PTR)r <= 32) {
+        char msg[512];
+        char *u = path_to_utf8(app->cfg.workspace);
+        snprintf(msg, sizeof(msg), "Cannot open the workspace:\n%s",
+                 u != NULL ? u : "");
+        msgbox_utf8(app->hwnd, msg, MB_OK | MB_ICONERROR);
+        a98_free(u);
+    }
+    a98_free(acp);
 }
 
 static void settings_test_connection(HWND dlg, App *app)
@@ -1050,12 +1791,24 @@ static BOOL CALLBACK about_proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
 
 static LRESULT CALLBACK input_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 {
-    if (msg == WM_CHAR && wp == '\r') {
-        if ((GetKeyState(VK_CONTROL) & 0x8000) == 0) {
-            PostMessageA(GetParent(hwnd), WM_COMMAND,
-                         MAKEWPARAM(IDC_SEND, BN_CLICKED),
-                         (LPARAM)GetDlgItem(GetParent(hwnd), IDC_SEND));
+    /* Alt+Up / Alt+Down cycle the prompt history, DOSKEY style.  Windows
+     * delivers these as WM_SYSKEYDOWN because Alt is held down. */
+    if (wp == VK_UP || wp == VK_DOWN) {
+        if (msg == WM_SYSKEYDOWN ||
+            (msg == WM_KEYDOWN && (GetKeyState(VK_MENU) & 0x8000) != 0)) {
+            input_history_nav(&g_app, wp == VK_UP ? -1 : 1);
             return 0;
+        }
+    }
+    if (msg == WM_CHAR) {
+        g_app.input_history_pos = g_app.input_history_count;
+        if (wp == '\r') {
+            if ((GetKeyState(VK_CONTROL) & 0x8000) == 0) {
+                PostMessageA(GetParent(hwnd), WM_COMMAND,
+                             MAKEWPARAM(IDC_SEND, BN_CLICKED),
+                             (LPARAM)GetDlgItem(GetParent(hwnd), IDC_SEND));
+                return 0;
+            }
         }
     }
     if (msg == WM_KEYDOWN && wp == VK_RETURN) {
@@ -1070,6 +1823,23 @@ static LRESULT CALLBACK input_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 /* Window creation and layout                                          */
 /* ------------------------------------------------------------------ */
 
+static void layout_status_parts(App *app)
+{
+    int edges[2];
+    RECT rc;
+
+    if (app == NULL || app->statusbar == NULL) {
+        return;
+    }
+    GetClientRect(app->statusbar, &rc);
+    edges[0] = rc.right - 260;
+    if (edges[0] < 120) {
+        edges[0] = 120;
+    }
+    edges[1] = -1;
+    SendMessageA(app->statusbar, SB_SETPARTS, 2, (LPARAM)edges);
+}
+
 static void layout(App *app)
 {
     RECT rc;
@@ -1077,9 +1847,12 @@ static void layout(App *app)
     int h;
     int y;
     int iy;
+    int ty;
     const int margin = 6;
     const int btn_h = 24;
     const int input_h = 84;
+    const int status_h = 22;
+    const int top_h = 24;
 
     if (app == NULL || app->hwnd == NULL) {
         return;
@@ -1088,21 +1861,32 @@ static void layout(App *app)
     w = rc.right - rc.left;
     h = rc.bottom - rc.top;
 
-    MoveWindow(app->status, margin, h - 20 - margin, w - 2 * margin, 16, TRUE);
+    /* Native Win9x status bar sits flush against the bottom edge. */
+    MoveWindow(app->statusbar, 0, h - status_h, w, status_h, TRUE);
+    layout_status_parts(app);
 
-    y = h - 20 - margin - btn_h - 4;
-    MoveWindow(app->send, margin, y, 70, btn_h, TRUE);
-    MoveWindow(app->stop, margin + 74, y, 70, btn_h, TRUE);
-    MoveWindow(app->newbtn, margin + 148, y, 70, btn_h, TRUE);
-    MoveWindow(app->settings, margin + 222, y, 70, btn_h, TRUE);
+    y = h - status_h - 4 - btn_h;
+    MoveWindow(app->send, margin, y, 64, btn_h, TRUE);
+    MoveWindow(app->stop, margin + 68, y, 64, btn_h, TRUE);
+    MoveWindow(app->newbtn, margin + 136, y, 64, btn_h, TRUE);
+    MoveWindow(app->settings, margin + 204, y, 72, btn_h, TRUE);
+    MoveWindow(app->workspace_btn, margin + 280, y, 84, btn_h, TRUE);
 
     iy = y - 4 - input_h;
-    if (iy < margin + 40) {
-        iy = margin + 40;
+    if (iy < margin + top_h + 4 + 40) {
+        iy = margin + top_h + 4 + 40;
     }
     MoveWindow(app->input, margin, iy, w - 2 * margin, input_h, TRUE);
-    MoveWindow(app->transcript, margin, margin,
-               w - 2 * margin, iy - 2 * margin, TRUE);
+
+    ty = margin;
+    MoveWindow(app->session_label, margin, ty + 4, 50, 16, TRUE);
+    /* The 120 px height is the drop-down extent, not the closed height.
+     * Win9x needs it in the window rect or the list is only one row tall. */
+    MoveWindow(app->session_combo, margin + 52, ty,
+               w - 2 * margin - 52, 120, TRUE);
+
+    MoveWindow(app->transcript, margin, ty + top_h + 4,
+               w - 2 * margin, iy - 4 - (ty + top_h + 4), TRUE);
 }
 
 static int load_rich_edit(App *app)
@@ -1146,34 +1930,56 @@ static void create_controls(App *app, HWND hwnd)
 
     app->send = CreateWindowExA(0, "BUTTON", "Send",
                                 WS_CHILD | WS_VISIBLE | WS_TABSTOP |
-                                BS_PUSHBUTTON, 0, 0, 70, 24, hwnd,
+                                BS_PUSHBUTTON, 0, 0, 64, 24, hwnd,
                                 (HMENU)IDC_SEND, app->hinst, NULL);
     app->stop = CreateWindowExA(0, "BUTTON", "Stop",
                                 WS_CHILD | WS_VISIBLE | WS_TABSTOP |
-                                BS_PUSHBUTTON, 0, 0, 70, 24, hwnd,
+                                BS_PUSHBUTTON, 0, 0, 64, 24, hwnd,
                                 (HMENU)IDC_STOP, app->hinst, NULL);
     app->newbtn = CreateWindowExA(0, "BUTTON", "New",
                                   WS_CHILD | WS_VISIBLE | WS_TABSTOP |
-                                  BS_PUSHBUTTON, 0, 0, 70, 24, hwnd,
+                                  BS_PUSHBUTTON, 0, 0, 64, 24, hwnd,
                                   (HMENU)IDC_NEW, app->hinst, NULL);
     app->settings = CreateWindowExA(0, "BUTTON", "Settings",
                                     WS_CHILD | WS_VISIBLE | WS_TABSTOP |
-                                    BS_PUSHBUTTON, 0, 0, 70, 24, hwnd,
+                                    BS_PUSHBUTTON, 0, 0, 72, 24, hwnd,
                                     (HMENU)IDC_SETTINGS, app->hinst, NULL);
+    app->workspace_btn = CreateWindowExA(0, "BUTTON", "Workspace",
+                                         WS_CHILD | WS_VISIBLE | WS_TABSTOP |
+                                         BS_PUSHBUTTON, 0, 0, 84, 24, hwnd,
+                                         (HMENU)IDC_OPEN_WORKSPACE, app->hinst,
+                                         NULL);
 
-    app->status = CreateWindowExA(0, "STATIC", "",
-                                  WS_CHILD | WS_VISIBLE | SS_LEFT |
-                                  SS_NOPREFIX, 0, 0, 100, 16, hwnd,
-                                  (HMENU)IDC_STATUS, app->hinst, NULL);
+    app->session_label = CreateWindowExA(0, "STATIC", "History:",
+                                         WS_CHILD | WS_VISIBLE | SS_LEFT |
+                                         SS_NOPREFIX, 0, 0, 50, 16, hwnd,
+                                         (HMENU)IDC_SESSION_LABEL,
+                                         app->hinst, NULL);
+    app->session_combo = CreateWindowExA(0, "COMBOBOX", "",
+                                         WS_CHILD | WS_VISIBLE | WS_TABSTOP |
+                                         WS_VSCROLL | CBS_DROPDOWNLIST,
+                                         0, 0, 100, 120, hwnd,
+                                         (HMENU)IDC_SESSION, app->hinst, NULL);
+
+    app->statusbar = CreateWindowExA(0, STATUSCLASSNAMEA, "",
+                                     WS_CHILD | WS_VISIBLE | SBARS_SIZEGRIP,
+                                     0, 0, 100, 22, hwnd,
+                                     (HMENU)IDC_STATUS, app->hinst, NULL);
 
     if (app->font != NULL) {
-        SendMessageA(app->transcript, WM_SETFONT, (WPARAM)app->font, TRUE);
         SendMessageA(app->input, WM_SETFONT, (WPARAM)app->font, TRUE);
         SendMessageA(app->send, WM_SETFONT, (WPARAM)app->font, TRUE);
         SendMessageA(app->stop, WM_SETFONT, (WPARAM)app->font, TRUE);
         SendMessageA(app->newbtn, WM_SETFONT, (WPARAM)app->font, TRUE);
         SendMessageA(app->settings, WM_SETFONT, (WPARAM)app->font, TRUE);
-        SendMessageA(app->status, WM_SETFONT, (WPARAM)app->font, TRUE);
+        SendMessageA(app->workspace_btn, WM_SETFONT, (WPARAM)app->font, TRUE);
+        SendMessageA(app->session_label, WM_SETFONT, (WPARAM)app->font, TRUE);
+        SendMessageA(app->session_combo, WM_SETFONT, (WPARAM)app->font, TRUE);
+        SendMessageA(app->statusbar, WM_SETFONT, (WPARAM)app->font, TRUE);
+    }
+    if (app->mono_font != NULL) {
+        SendMessageA(app->transcript, WM_SETFONT, (WPARAM)app->mono_font,
+                     TRUE);
     }
 
     if (app->rich == 2) {
@@ -1183,6 +1989,7 @@ static void create_controls(App *app, HWND hwnd)
     } else {
         SendMessageA(app->transcript, EM_SETLIMITTEXT, 0, (LPARAM)0x7FFFFFFE);
     }
+    transcript_set_default_format(app);
 
     g_input_oldproc = (WNDPROC)SetWindowLongA(app->input, GWL_WNDPROC,
                                              (LONG)input_proc);
@@ -1202,13 +2009,24 @@ static LRESULT CALLBACK main_wndproc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         app->hwnd = hwnd;
         create_controls(app, hwnd);
         layout(app);
+        session_scan(app);
+        session_combo_fill(app, NULL);
+        copy_str(app->status_line, sizeof(app->status_line), "Ready");
         set_running(app, 0);
         update_status(app);
+        SetTimer(hwnd, IDT_SPINNER, 150, NULL);
         SetFocus(app->input);
         return 0;
 
     case WM_SIZE:
         layout(app);
+        return 0;
+
+    case WM_TIMER:
+        if (wp == IDT_SPINNER && app->running) {
+            app->spin_frame = (app->spin_frame + 1) & 3;
+            status_update(app);
+        }
         return 0;
 
     case WM_GETMINMAXINFO:
@@ -1243,11 +2061,25 @@ static LRESULT CALLBACK main_wndproc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         case IDM_SETTINGS:
             do_settings(app);
             return 0;
+        case IDC_OPEN_WORKSPACE:
+        case IDM_WORKSPACE:
+            do_open_workspace(app);
+            return 0;
         case IDM_SAVE:
             do_save(app);
             return 0;
         case IDM_LOAD:
             do_load(app);
+            return 0;
+        case IDM_EXPORT:
+            do_export(app);
+            return 0;
+        case IDC_SESSION:
+            if (HIWORD(wp) == CBN_SELCHANGE) {
+                int idx = (int)SendMessageA(app->session_combo, CB_GETCURSEL,
+                                            0, 0);
+                do_session_select(app, idx);
+            }
             return 0;
         case IDM_ABOUT:
             DialogBoxParamA(app->hinst, MAKEINTRESOURCEA(IDD_ABOUT),
@@ -1266,19 +2098,38 @@ static LRESULT CALLBACK main_wndproc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         if (ev != NULL) {
             switch (ev->type) {
             case AGENT_EV_TEXT:
+                if (app->round_no > 0) {
+                    snprintf(app->status_line, sizeof(app->status_line),
+                             "Running (Round %d, replying)", app->round_no);
+                    status_update(app);
+                }
                 transcript_append(app, ev->text);
                 break;
             case AGENT_EV_ROUND:
-                transcript_line(app, "\r\n[round] ", ev->text);
+                app->round_no++;
+                snprintf(app->status_line, sizeof(app->status_line),
+                         "Running (Round %d)", app->round_no);
+                status_update(app);
+                transcript_line_colored(app, "\r\n[round] ", COL_ROUND, 0,
+                                        ev->text, COL_ROUND, 0);
                 break;
             case AGENT_EV_TOOL_START:
-                transcript_line(app, "\r\n[tool] ", ev->text);
+                snprintf(app->status_line, sizeof(app->status_line),
+                         "Running (Round %d, tool)", app->round_no);
+                status_update(app);
+                transcript_line_colored(app, "\r\n[tool] ", COL_TOOL, 0,
+                                        ev->text, COL_TOOL, 0);
                 break;
             case AGENT_EV_TOOL_RESULT:
-                transcript_line(app, "[result] ", ev->text);
+                snprintf(app->status_line, sizeof(app->status_line),
+                         "Running (Round %d)", app->round_no);
+                status_update(app);
+                transcript_line_colored(app, "[result] ", COL_RESULT, 0,
+                                        ev->text, COL_RESULT, 0);
                 break;
             case AGENT_EV_INFO:
-                transcript_line(app, "[info] ", ev->text);
+                transcript_line_colored(app, "[info] ", COL_ROUND, 0,
+                                        ev->text, COL_ROUND, 0);
                 break;
             default:
                 transcript_line(app, "", ev->text);
@@ -1300,15 +2151,20 @@ static LRESULT CALLBACK main_wndproc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         }
         if (!ok) {
             if (err != NULL && err[0] != '\0') {
-                transcript_line(app, "\r\n[error] ", err);
+                transcript_line_colored(app, "\r\n[error] ", COL_ERROR, 1,
+                                        err, COL_ERROR, 0);
             } else {
-                transcript_append(app, "\r\n[error] request failed\r\n");
+                transcript_line_colored(app, "\r\n[error] ", COL_ERROR, 1,
+                                        "request failed", COL_ERROR, 0);
             }
         } else {
             transcript_append(app, "\r\n");
         }
         a98_free(err);
         set_running(app, 0);
+        if (!app->closing) {
+            auto_save_session(app);
+        }
         update_status(app);
         if (app->closing) {
             DestroyWindow(hwnd);
@@ -1343,13 +2199,14 @@ static LRESULT CALLBACK main_wndproc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             }
             app->closing = 1;
             app->cancel = 1;
-            SetWindowTextA(app->status, "Cancelling...");
+            status_set(app, "Cancelling...");
             return 0;
         }
         DestroyWindow(hwnd);
         return 0;
 
     case WM_DESTROY:
+        KillTimer(hwnd, IDT_SPINNER);
         app->cancel = 1;
         if (app->thread != NULL) {
             WaitForSingleObject(app->thread, 3000);
@@ -1381,6 +2238,45 @@ static HFONT make_ui_font(void)
     return (HFONT)GetStockObject(DEFAULT_GUI_FONT);
 }
 
+/* Classic fixed-pitch console font.  Fixedsys is the canonical Win9x
+ * terminal face; on CJK systems NSimSun keeps Chinese text aligned. */
+static HFONT make_mono_font(App *app)
+{
+    LOGFONTA lf;
+    HDC hdc;
+    int height;
+    UINT acp;
+    const char *face;
+
+    memset(&lf, 0, sizeof(lf));
+    hdc = GetDC(NULL);
+    height = -MulDiv(A98_TRANSCRIPT_POINTS,
+                     GetDeviceCaps(hdc, LOGPIXELSY), 72);
+    ReleaseDC(NULL, hdc);
+
+    lf.lfHeight = height;
+    lf.lfWeight = FW_NORMAL;
+    lf.lfCharSet = DEFAULT_CHARSET;
+    lf.lfOutPrecision = OUT_DEFAULT_PRECIS;
+    lf.lfClipPrecision = CLIP_DEFAULT_PRECIS;
+    lf.lfQuality = DEFAULT_QUALITY;
+    lf.lfPitchAndFamily = FIXED_PITCH | FF_MODERN;
+
+    acp = GetACP();
+    if (acp == 936) {
+        face = "NSimSun";
+    } else if (acp == 932) {
+        face = "MS Gothic";
+    } else if (acp == 949) {
+        face = "GulimChe";
+    } else {
+        face = "Fixedsys";
+    }
+    copy_str(lf.lfFaceName, sizeof(lf.lfFaceName), face);
+    copy_str(app->mono_face, sizeof(app->mono_face), face);
+    return CreateFontIndirectA(&lf);
+}
+
 int WINAPI WinMain(HINSTANCE hinst, HINSTANCE prev, LPSTR cmdline, int show)
 {
     App *app = &g_app;
@@ -1388,6 +2284,7 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE prev, LPSTR cmdline, int show)
     MSG msg;
     char log_path[A98_MAX_PATH];
     int rich;
+    int i;
 
     (void)prev;
     (void)cmdline;
@@ -1398,6 +2295,9 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE prev, LPSTR cmdline, int show)
     if (a98_path_exe_dir(app->exe_dir, sizeof(app->exe_dir)) != 0) {
         strcpy(app->exe_dir, ".");
     }
+    a98_path_join(app->sessions_dir, sizeof(app->sessions_dir),
+                  app->exe_dir, "sessions");
+    a98_path_mkdirs(app->sessions_dir);
 
     /* Open the log before touching the configuration.  If the process dies
      * during startup, this file is the only clue we get on Windows 9x. */
@@ -1420,8 +2320,12 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE prev, LPSTR cmdline, int show)
         return 1;
     }
 
+    /* The status bar is one of the original Win95 common controls. */
+    InitCommonControls();
+
     agent_init(&app->agent, &app->cfg);
     agent_new_conversation(&app->agent);
+    agent_ensure_dirs(&app->agent);
     app->agent.on_event = gui_on_event;
     app->agent.event_ctx = app;
     app->agent.on_confirm = gui_confirm;
@@ -1431,6 +2335,7 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE prev, LPSTR cmdline, int show)
     rich = load_rich_edit(app);
     log_info("RichEdit mode: %d", rich);
     app->font = make_ui_font();
+    app->mono_font = make_mono_font(app);
     app->accel = LoadAcceleratorsA(hinst, MAKEINTRESOURCEA(IDR_ACCEL));
 
     memset(&wc, 0, sizeof(wc));
@@ -1498,6 +2403,13 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE prev, LPSTR cmdline, int show)
     log_shutdown();
     if (app->font != NULL) {
         DeleteObject(app->font);
+    }
+    if (app->mono_font != NULL) {
+        DeleteObject(app->mono_font);
+    }
+    for (i = 0; i < app->input_history_count; i++) {
+        a98_free(app->input_history[i]);
+        app->input_history[i] = NULL;
     }
     if (app->rich_dll != NULL) {
         FreeLibrary(app->rich_dll);

@@ -23,6 +23,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   connection and TLS read errors, plus HTTP 429, 502, 503 and 504. Retries are
   logged and are skipped once part of the answer has already been displayed,
   so streamed text is never duplicated.
+- Retro GUI upgrade: a 9 pt fixed-pitch transcript with semantic colours
+  (dark blue `You:`, grey `[round]`, teal `[tool]`, green `[result]`, red
+  `[error]`), a History combo box for the auto-saved sessions in `sessions/`,
+  auto-save after every completed request, DOSKEY-style `Alt+Up` /
+  `Alt+Down` prompt history, CP_ACP/CRLF transcript export
+  (`Ctrl+E`), a native status bar with a spinner and round counter, and
+  **Tools -> Open workspace** / **Workspace** (ShellExecuteA).
 
 ### Changed
 

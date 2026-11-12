@@ -19,6 +19,9 @@
 #define IDC_SETTINGS       1004
 #define IDC_NEW            1005
 #define IDC_STATUS         1006
+#define IDC_SESSION_LABEL  1007
+#define IDC_SESSION        1008
+#define IDC_OPEN_WORKSPACE 1009
 
 #define IDM_NEW            40001
 #define IDM_SAVE           40002
@@ -26,6 +29,8 @@
 #define IDM_EXIT           40004
 #define IDM_SETTINGS       40005
 #define IDM_ABOUT          40006
+#define IDM_EXPORT         40007
+#define IDM_WORKSPACE      40008
 
 #define IDC_PROVIDER       2000
 #define IDC_API_BASE       2001

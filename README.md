@@ -165,6 +165,26 @@ is written to `agent98.log` in the same directory.
 
 All fields are saved to `agent98.ini`.
 
+#### GUI features
+
+The 800x600 GUI keeps a 90s console look:
+
+- The transcript uses a 9 pt fixed-pitch font (Fixedsys, or NSimSun on CJK
+  systems) and colour-codes the conversation: `You:` in bold dark blue,
+  `[round]` grey, `[tool]` teal, `[result]` green and `[error]` red.
+- The **History** combo box at the top lists the sessions in `sessions/`
+  (next to the executable). Every completed request is saved automatically as
+  `YYYYMMDD_HHMM_<first prompt>.json`; selecting an entry reloads it and
+  **New** starts a fresh conversation.
+- `Alt+Up` / `Alt+Down` in the input box cycle the prompts from this run
+  (DOSKEY style).
+- **File -> Export transcript...** (`Ctrl+E`) writes the visible transcript as
+  CP_ACP text with CRLF line endings, ready for Notepad.
+- The native status bar shows a spinner and the current round while a request
+  runs, plus the workspace path.
+- **Tools -> Open workspace** (or the **Workspace** button) opens the workspace
+  folder in Explorer.
+
 #### Agent loop and loop guard
 
 One user turn is a loop of API rounds followed by tool execution. `max_steps`
@@ -257,8 +277,9 @@ workspace), then run:
 powershell -NoProfile -ExecutionPolicy Bypass -File tests\gui_smoke.ps1
 ```
 
-It covers streamed replies, tool calls and results rendering, and accepting or
-denying the write-file confirmation.
+It covers streamed replies, tool calls and results rendering, accepting or
+denying the write-file confirmation, the auto-saved session and History combo,
+the status bar, `Alt+Up` / `Alt+Down` prompt history, and New/load.
 
 #### Settings dialog smoke test
 
@@ -485,6 +506,23 @@ level=3
 
 所有字段保存到 `agent98.ini`。
 
+#### GUI 功能
+
+800x600 的 GUI 采用 90 年代控制台风格：
+
+- 对话区使用 9 磅等宽字体（Fixedsys；中文系统为 NSimSun），并按语义着色：
+  `You:` 深蓝加粗、`[round]` 灰色、`[tool]` 深青、`[result]` 深绿、
+  `[error]` 红色。
+- 顶部的 **History** 下拉框列出 exe 同目录 `sessions/` 中的会话。每次请求
+  完成后自动保存为 `YYYYMMDD_HHMM_<首条消息>.json`；选择条目即可重新载入，
+  **New** 开始新会话。
+- 输入框中 `Alt+Up` / `Alt+Down` 可按 DOSKEY 方式翻阅本次运行的提示历史。
+- **File -> Export transcript...**（`Ctrl+E`）把当前对话导出为 CP_ACP
+  编码、CRLF 换行的文本，可直接用记事本打开。
+- 原生状态栏在请求运行期间显示旋转指示和当前轮数，并显示 workspace 路径。
+- **Tools -> Open workspace**（或 **Workspace** 按钮）在资源管理器中打开
+  workspace 目录。
+
 #### Agent 循环与死循环保护
 
 一轮用户对话由多次 API 请求和工具执行组成。`max_steps` 限制工具轮数，默认
@@ -570,7 +608,8 @@ node tests\mock_openai.js 8787
 powershell -NoProfile -ExecutionPolicy Bypass -File tests\gui_smoke.ps1
 ```
 
-测试覆盖流式回复、工具调用与结果渲染、写文件确认的允许/拒绝。
+测试覆盖流式回复、工具调用与结果渲染、写文件确认的允许/拒绝、会话自动保存
+与 History 下拉框、状态栏、`Alt+Up` / `Alt+Down` 提示历史，以及 New/载入。
 
 #### 设置对话框冒烟测试
 
