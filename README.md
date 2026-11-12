@@ -226,3 +226,8 @@ gcc -std=c99 -O1 -w -Isrc -Isrc/core -Isrc/agent -Isrc/net ^
 - Win9x 上的 RichEdit 2.0A 不可用时自动回退到 RichEdit 1.0 / EDIT
 - 尚未实现代理、自动重试、上下文裁剪
 - 关闭窗口时最多等待 worker 3 秒；超时路径仍需加强
+
+## 许可证
+
+MIT，见 [LICENSE](LICENSE)。`third_party/` 下的 BearSSL、cJSON 和 Mozilla
+根证书保留各自的原始许可证。
