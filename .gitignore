@@ -28,3 +28,6 @@ tools/openwatcom/
 *~
 Thumbs.db
 desktop.ini
+
+# The release binaries in dist/ are tracked on purpose
+!dist/*.exe

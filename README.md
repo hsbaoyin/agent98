@@ -11,6 +11,22 @@ BearSSL 连接现代 HTTPS LLM API，不依赖局域网中转机或第二台电�
 - 本地工具：读文件、写文件、列目录、搜索文件、执行命令（需确认）
 - 自动向模型注入运行环境（Windows 版本、workspace、COMMAND.COM 约束）
 
+## 发布文件
+
+`dist/` 里是已经编译好的 Windows 9x 版本：
+
+| 文件 | 说明 |
+|---|---|
+| `dist/agent98.exe` | 图形界面版（推荐） |
+| `dist/a98.exe` | 命令行版，与 GUI 共用 `agent98.ini` |
+| `dist/tlsprobe.exe` | TLS 连通性探测 |
+| `dist/sample.ini` | 配置示例 |
+| `dist/README.TXT` | 安装与使用说明（GBK 编码，记事本可直接打开） |
+
+把 `dist/` 里的文件复制到硬盘目录（例如 `C:\AGENT98`）再运行。不要直接在
+光盘或只读目录里运行：程序需要在 exe 同目录创建 `agent98.ini`、
+`agent98.log` 和 workspace。
+
 ## 目录结构
 
 ```
@@ -23,6 +39,7 @@ third_party/    BearSSL、cJSON、Mozilla CA
 tests/          mock 服务器与冒烟测试
 tools/          构建辅助脚本
 ow/             OpenWatcom 构建规则（由脚本生成）
+dist/           已编译好的发布文件
 ```
 
 ## 构建
@@ -58,6 +75,27 @@ GUI 的 worker 线程会调用 C 运行时（malloc、stdio、日志等）。Ope
 
 否则 CRT 不会为新线程初始化 per-thread 数据，堆操作会随机崩溃
 （`0xC0000005`，崩溃位置通常在 `__MemAllocator`）。
+
+### Win9x 链接选项
+
+`tools/gen_ow_build.ps1` 生成的所有 wlink 响应文件都带有：
+
+```
+option offset=0x400000
+option norelocs
+option version=4.0
+option stack=262144
+```
+
+固定基址、去掉重定位表、镜像版本 4.0，Win9x 的 PE 加载器才愿意加载；
+256 KB 栈给 BearSSL 客户端上下文留足空间。改动这些选项后需要重新运行
+`tools\gen_ow_build.ps1`，再 `build_ow.cmd clean` 全量重建。
+
+### 启动日志
+
+`agent98.exe` 和 `a98.exe` 启动后的第一件事就是在 exe 同目录打开
+`agent98.log`，记录版本和 exe 目录，然后才读取 INI。排查启动崩溃时先看
+这个文件：如果它完全没有生成，说明程序还没进入 `main` / `WinMain`。
 
 ## 配置
 
