@@ -21,6 +21,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Default `agent.max_steps` raised from 8 to 24, so long diagnostic tasks can
   finish without hitting the tool-round limit.
+- README is now bilingual: full English documentation followed by the
+  Simplified Chinese original, with language links at the top.
 
 ## [0.1.0] - 2026-11-12
 
