@@ -17,10 +17,10 @@ BearSSL 连接现代 HTTPS LLM API，不依赖局域网中转机或第二台电�
 
 | 文件 | 说明 |
 |---|---|
-| `dist/agent98.exe` | 图形界面版（推荐） |
-| `dist/a98.exe` | 命令行版，与 GUI 共用 `agent98.ini` |
-| `dist/tlsprobe.exe` | TLS 连通性探测 |
-| `dist/sample.ini` | 配置示例 |
+| `dist/AGENT98.EXE` | 图形界面版（推荐） |
+| `dist/A98.EXE` | 命令行版，与 GUI 共用 `agent98.ini` |
+| `dist/TLSPROBE.EXE` | TLS 连通性探测 |
+| `dist/SAMPLE.INI` | 配置示例 |
 | `dist/README.TXT` | 安装与使用说明（GBK 编码，记事本可直接打开） |
 
 把 `dist/` 里的文件复制到硬盘目录（例如 `C:\AGENT98`）再运行。不要直接在
