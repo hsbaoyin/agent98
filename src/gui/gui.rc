@@ -54,7 +54,7 @@ BEGIN
     EDITTEXT        IDC_TEMPERATURE, 72, 118, 40, 12, ES_AUTOHSCROLL
     LTEXT           "Max tokens:", -1, 128, 121, 50, 8
     EDITTEXT        IDC_MAX_TOKENS, 180, 118, 42, 12, ES_AUTOHSCROLL
-    LTEXT           "Max steps:", -1, 240, 121, 44, 8
+    LTEXT           "Max steps (0=inf):", -1, 232, 121, 54, 8
     EDITTEXT        IDC_MAX_STEPS, 288, 118, 42, 12, ES_AUTOHSCROLL
     LTEXT           "Extra headers:", -1, 8, 137, 58, 8
     EDITTEXT        IDC_EXTRA_HEADERS, 72, 134, 280, 26, ES_MULTILINE | ES_AUTOVSCROLL | ES_WANTRETURN | WS_VSCROLL

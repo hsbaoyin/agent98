@@ -39,7 +39,7 @@ temperature=0.7
 workspace=.\workspace
 allow_shell=0
 allow_outside=0
-max_steps=24
+max_steps=32
 connect_timeout=10
 request_timeout=30
 [tls]

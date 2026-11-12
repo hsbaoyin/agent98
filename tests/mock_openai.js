@@ -5,6 +5,10 @@
  *
  * Behaviour:
  *   - "list files" in the latest user message -> one list_dir tool call
+ *   - "write file" -> one write_file tool call
+ *   - "loop forever" -> the same list_dir call on every round (loop guard)
+ *   - "count up [N]" -> N distinct list_dir calls, then a final answer
+ *   - "retry 503" / "retry drop" -> fail the first request, succeed later
  *   - anything else -> a short text answer
  *   - honours "stream": true with SSE chunks
  */
@@ -66,6 +70,19 @@ const server = http.createServer((req, res) => {
     const stream = !!payload.stream;
     const wantsRetry503 = /retry 503/i.test(lastUser) && freshUser;
     const wantsRetryDrop = /retry drop/i.test(lastUser) && freshUser;
+    /* Loop-guard fixture: the same tool call is repeated every round. */
+    const wantsLoop = /loop forever/i.test(lastUser);
+    /* Unlimited-step fixture: N distinct tool calls, then a final answer.
+     * The arguments differ each round, so the loop guard must not trip. */
+    const countMatch = lastUser.match(/count up(?:\s+(\d+))?/i);
+    const wantsCount = !!countMatch;
+    const countTarget = countMatch
+      ? Math.max(1, parseInt(countMatch[1] || '40', 10))
+      : 0;
+    const toolRounds = messages.filter((m) =>
+      m.role === 'assistant' && Array.isArray(m.tool_calls) &&
+      m.tool_calls.length > 0).length;
+    const countDone = wantsCount && toolRounds >= countTarget;
     let retried = false;
 
     if (wantsRetry503 || wantsRetryDrop) {
@@ -85,19 +102,40 @@ const server = http.createServer((req, res) => {
       retried = true;
     }
 
-    if (wantsTool || wantsWrite) {
-      const call = wantsWrite ? {
-        id: 'call_mock_write',
-        type: 'function',
-        function: {
-          name: 'write_file',
-          arguments: JSON.stringify({ path: 'mock.txt', content: 'written by mock\n' })
-        }
-      } : {
-        id: 'call_mock_1',
-        type: 'function',
-        function: { name: 'list_dir', arguments: '{"path":"."}' }
-      };
+    if (!countDone && (wantsTool || wantsWrite || wantsLoop || wantsCount)) {
+      let call;
+      if (wantsWrite) {
+        call = {
+          id: 'call_mock_write',
+          type: 'function',
+          function: {
+            name: 'write_file',
+            arguments: JSON.stringify({ path: 'mock.txt', content: 'written by mock\n' })
+          }
+        };
+      } else if (wantsLoop) {
+        call = {
+          id: 'call_mock_loop',
+          type: 'function',
+          function: { name: 'list_dir', arguments: '{"path":"."}' }
+        };
+      } else if (wantsCount) {
+        const n = toolRounds + 1;
+        call = {
+          id: 'call_mock_count_' + n,
+          type: 'function',
+          function: {
+            name: 'list_dir',
+            arguments: JSON.stringify({ path: 'step-' + n })
+          }
+        };
+      } else {
+        call = {
+          id: 'call_mock_1',
+          type: 'function',
+          function: { name: 'list_dir', arguments: '{"path":"."}' }
+        };
+      }
       if (stream) {
         res.writeHead(200, {
           'Content-Type': 'text/event-stream',
@@ -134,6 +172,8 @@ const server = http.createServer((req, res) => {
     let text = 'Hello from the mock server.';
     if (retried) {
       text = 'The retry succeeded.';
+    } else if (countDone) {
+      text = 'Counted ' + countTarget + ' steps.';
     } else if (hasToolResult) {
       if (/Wrote \d+ bytes/.test(lastTool)) {
         text = 'I wrote the file.';

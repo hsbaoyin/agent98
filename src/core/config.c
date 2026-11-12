@@ -55,7 +55,7 @@ void config_defaults(Config *cfg, const char *exe_dir)
     cfg->tls_verify = 1;
     cfg->allow_outside = 0;
     cfg->allow_shell = 1;
-    cfg->max_steps = 24;
+    cfg->max_steps = 32;
     cfg->connect_timeout_sec = 30;
     cfg->request_timeout_sec = 180;
     cfg->log_level = 2;
@@ -153,11 +153,13 @@ int config_load(Config *cfg, const char *ini_path)
     if (cfg->max_tokens > 32768) {
         cfg->max_tokens = 32768;
     }
-    if (cfg->max_steps < 1) {
-        cfg->max_steps = 1;
-    }
-    if (cfg->max_steps > 32) {
+    /* 0 means unlimited; otherwise allow a generous 1..200.  A negative or
+     * unparsable value falls back to the default. */
+    if (cfg->max_steps < 0) {
         cfg->max_steps = 32;
+    }
+    if (cfg->max_steps > 200) {
+        cfg->max_steps = 200;
     }
     if (cfg->temperature < 0.0) {
         cfg->temperature = 0.0;

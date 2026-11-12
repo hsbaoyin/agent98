@@ -134,7 +134,8 @@ temperature=0.7
 [agent]
 workspace=C:\Agent98
 allow_shell=0
-max_steps=24
+; 0 = no limit (stop with the GUI Stop button), otherwise 1..200
+max_steps=32
 [tls]
 verify=1
 [log]
@@ -153,7 +154,8 @@ is written to `agent98.log` in the same directory.
 - **API base / API key / Model**: any OpenAI-compatible service; the key may be
   empty for Ollama.
 - **System prompt**: multi-line system prompt.
-- **Temperature / Max tokens / Max steps**.
+- **Temperature / Max tokens / Max steps**: steps may be 0 (no limit) or any
+  value from 1 to 200.
 - **Extra headers**: one `Name: value` per line, or several separated by `|` on
   one line, for services such as OpenRouter that need extra headers.
 - **Test connection**: sends a GET to `{api_base}/models` and shows the HTTP
@@ -162,6 +164,20 @@ is written to `agent98.log` in the same directory.
 - **Workspace / TLS / shell / stream** toggles.
 
 All fields are saved to `agent98.ini`.
+
+#### Agent loop and loop guard
+
+One user turn is a loop of API rounds followed by tool execution. `max_steps`
+bounds the number of tool rounds; the default is 32, and `0` means unlimited,
+so the run continues until the model answers or the user presses **Stop**
+(Ctrl+C in the CLI). The GUI and INI accept 0 or 1..200.
+
+A high or unlimited limit is safe because a loop guard watches the tool calls.
+If the model sends the same tool name with the same arguments three times in a
+row, the third call is not executed: the model receives an error tool result
+asking it to change approach or finish. A fourth identical call stops the run
+with `loop guard stopped the run`, which protects the API quota. Every blocked
+call still gets a tool message, so the saved history stays protocol-valid.
 
 #### Network retries and text encoding
 
@@ -222,7 +238,9 @@ node tests\mock_openai.js 8787
 Point `api.base` in `build/testrun/agent98.ini` at
 `http://127.0.0.1:8787/v1`; `key` can be `test`. Sending `retry 503` or
 `retry drop` makes the server fail the first request with 503 or drop the
-connection, which exercises the retry logic.
+connection, which exercises the retry logic. `loop forever` repeats the same
+tool call every round (loop guard), while `count up 40` issues 40 distinct
+calls and then answers (unlimited steps).
 
 #### CLI
 
@@ -250,8 +268,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests\settings_smoke.ps1
 
 The test starts a temporary mock server on port 8788 and checks provider
 presets, API base/model filling, the HTTP 200 result of `Test connection`, and
-that the system prompt, temperature and extra headers are written to the INI.
-The original `agent98.ini` is restored afterwards.
+that the system prompt, temperature, extra headers and `max_steps=0` are
+written to the INI. The original `agent98.ini` is restored afterwards.
 
 > Note: `build/testrun/agent98.exe` is a hand-copied test build. After
 > rebuilding, copy `build/ow/agent98.exe` there before running the GUI test.
@@ -267,6 +285,18 @@ connection is dropped) and the second succeeds, verifying automatic retry,
 backoff logging and that the answer is not duplicated. The default directory is
 `build\testrun_retry`; copy `build\ow\a98.exe` into it first. The script
 overwrites `agent98.ini` in that directory.
+
+#### Loop-control smoke test
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tests\loop_smoke.ps1
+```
+
+Using the mock server on port 8791, the script verifies that `max_steps=0`
+finishes a 40-round task, that the loop guard blocks the third identical tool
+call and stops the run on the fourth, and that `max_steps=3` still stops after
+three rounds. The default directory is `build\testrun_loop`; copy
+`build\ow\a98.exe` into it first.
 
 #### PE compatibility check
 
@@ -425,7 +455,8 @@ temperature=0.7
 [agent]
 workspace=C:\Agent98
 allow_shell=0
-max_steps=24
+; 0 = 不限步数（用 GUI 的 Stop 按钮中断），否则为 1~200
+max_steps=32
 [tls]
 verify=1
 [log]
@@ -444,7 +475,7 @@ level=3
 - **API base / API key / Model**：任意 OpenAI 兼容服务；Ollama 的 key
   可以留空。
 - **System prompt**：多行系统提示词。
-- **Temperature / Max tokens / Max steps**。
+- **Temperature / Max tokens / Max steps**：步数可填 0（不限）或 1~200。
 - **Extra headers**：每行一个 `Name: value`，也可以在同一行用 `|`
   分隔，用于 OpenRouter 等需要额外头的服务。
 - **Test connection**：向 `{api_base}/models` 发一个 GET 请求，显示
@@ -453,6 +484,18 @@ level=3
 - **Workspace / TLS / shell / stream** 开关。
 
 所有字段保存到 `agent98.ini`。
+
+#### Agent 循环与死循环保护
+
+一轮用户对话由多次 API 请求和工具执行组成。`max_steps` 限制工具轮数，默认
+32；填 0 表示不限，直到模型给出最终回答或用户点击 **Stop**（CLI 中按
+Ctrl+C）。GUI 和 INI 都接受 0 或 1~200。
+
+上限调高或设为不限后，由循环保护（Loop Guard）兜底：如果模型连续 3 次用
+完全相同的工具名和参数调用，第 3 次不再执行，而是把错误结果返回给模型，
+要求它更换方案或直接结束；如果第 4 次仍然完全重复，则终止本轮对话并报
+`loop guard stopped the run`，避免空转消耗 API 额度。被拦截的调用仍会写入
+一条 tool 消息，因此保存的会话历史始终符合协议格式。
 
 #### 网络重试与文本编码
 
@@ -508,7 +551,9 @@ node tests\mock_openai.js 8787
 
 在 `build/testrun/agent98.ini` 中把 `api.base` 指向
 `http://127.0.0.1:8787/v1`，`key` 可填 `test`。发送 `retry 503` 或
-`retry drop` 可以让服务器第一次请求返回 503 / 直接断开，用来验证重试。
+`retry drop` 可以让服务器第一次请求返回 503 / 直接断开，用来验证重试；
+`loop forever` 会每轮重复同一个工具调用（验证死循环保护），
+`count up 40` 会连续发出 40 个不同参数的调用再给出答案（验证不限步数）。
 
 #### CLI
 
@@ -535,8 +580,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests\settings_smoke.ps1
 
 测试会在 8788 端口启动一个临时 mock 服务器，验证服务商预设、API
 base/model 填写、`Test connection` 的 HTTP 200 结果，以及 system
-prompt、temperature、extra headers 是否写入 INI。测试结束后会恢复
-原来的 `agent98.ini`。
+prompt、temperature、extra headers、`max_steps=0` 是否写入 INI。
+测试结束后会恢复原来的 `agent98.ini`。
 
 > 注意：`build/testrun/agent98.exe` 是手工复制的测试副本，重新构建后
 > 需要把 `build/ow/agent98.exe` 复制过去再跑 GUI 测试。
@@ -551,6 +596,17 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests\retry_smoke.ps1
 成功，用来验证自动重试、退避日志和回复不重复。默认目录是
 `build\testrun_retry`，需要先把 `build\ow\a98.exe` 复制进去；脚本会覆盖
 该目录下的 `agent98.ini`。
+
+#### 循环控制冒烟测试
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tests\loop_smoke.ps1
+```
+
+使用 8791 端口的 mock 服务器，验证 `max_steps=0` 能跑完 40 轮任务、循环保护
+会拦截第 3 次完全相同的工具调用并在第 4 次终止，以及 `max_steps=3` 仍会在
+3 轮后停止。默认目录是 `build\testrun_loop`，需要先把
+`build\ow\a98.exe` 复制进去。
 
 #### PE 兼容性检查
 

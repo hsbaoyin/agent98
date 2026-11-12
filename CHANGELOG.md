@@ -26,8 +26,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
-- Default `agent.max_steps` raised from 8 to 24, so long diagnostic tasks can
-  finish without hitting the tool-round limit.
+- Default `agent.max_steps` raised from 8 to 32. A value of 0 now means
+  unlimited: the run stops only when the model answers or the user presses
+  Stop. The GUI and INI accept 0 or 1..200.
+- Added a loop guard to the agent loop. Three consecutive identical tool calls
+  (same name and arguments) no longer execute on the third attempt: the model
+  receives an error tool result asking for a different approach, and a fourth
+  identical call stops the run. Blocked calls still produce a tool message, so
+  the conversation history stays valid.
 - README is now bilingual: full English documentation followed by the
   Simplified Chinese original, with language links at the top.
 

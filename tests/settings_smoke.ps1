@@ -53,6 +53,7 @@ public class A98SettingsUi {
     public const int IDC_MODEL = 2003;
     public const int IDC_SYSTEM_PROMPT = 2010;
     public const int IDC_TEMPERATURE = 2011;
+    public const int IDC_MAX_STEPS = 2005;
     public const int IDC_EXTRA_HEADERS = 2012;
     public const int IDC_TEST = 2013;
     public const int IDC_TEST_RESULT = 2014;
@@ -112,6 +113,7 @@ try {
     $model = [A98SettingsUi]::GetDlgItem($dlg, [A98SettingsUi]::IDC_MODEL)
     $prompt = [A98SettingsUi]::GetDlgItem($dlg, [A98SettingsUi]::IDC_SYSTEM_PROMPT)
     $temp = [A98SettingsUi]::GetDlgItem($dlg, [A98SettingsUi]::IDC_TEMPERATURE)
+    $steps = [A98SettingsUi]::GetDlgItem($dlg, [A98SettingsUi]::IDC_MAX_STEPS)
     $headers = [A98SettingsUi]::GetDlgItem($dlg, [A98SettingsUi]::IDC_EXTRA_HEADERS)
     $test = [A98SettingsUi]::GetDlgItem($dlg, [A98SettingsUi]::IDC_TEST)
     $result = [A98SettingsUi]::GetDlgItem($dlg, [A98SettingsUi]::IDC_TEST_RESULT)
@@ -164,6 +166,8 @@ try {
                                     [IntPtr]::Zero, 'Smoke system prompt')
     [void][A98SettingsUi]::SendText($temp, [A98SettingsUi]::WM_SETTEXT,
                                     [IntPtr]::Zero, '1.25')
+    [void][A98SettingsUi]::SendText($steps, [A98SettingsUi]::WM_SETTEXT,
+                                    [IntPtr]::Zero, '0')
     [void][A98SettingsUi]::SendText($headers, [A98SettingsUi]::WM_SETTEXT,
                                     [IntPtr]::Zero, 'X-Smoke: yes')
     [void][A98SettingsUi]::SendInt($dlg, [A98SettingsUi]::WM_COMMAND,
@@ -175,6 +179,7 @@ try {
     foreach ($needle in @("base=http://127.0.0.1:$Port/v1",
                           'model=mock-model',
                           'temperature=1.25',
+                          'max_steps=0',
                           'system_prompt=Smoke system prompt',
                           'extra_headers=X-Smoke: yes')) {
         if (-not $saved.Contains($needle)) {

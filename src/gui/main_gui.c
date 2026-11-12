@@ -929,13 +929,13 @@ static BOOL CALLBACK settings_proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
                 t = 2.0;
             }
             app->cfg.temperature = t;
+            /* 0 = unlimited, otherwise 1..200. */
             app->cfg.max_steps =
                 (int)GetDlgItemInt(dlg, IDC_MAX_STEPS, &ok, FALSE);
-            if (!ok || app->cfg.max_steps < 1) {
-                app->cfg.max_steps = 1;
-            }
-            if (app->cfg.max_steps > 32) {
+            if (!ok) {
                 app->cfg.max_steps = 32;
+            } else if (app->cfg.max_steps > 200) {
+                app->cfg.max_steps = 200;
             }
             app->cfg.max_tokens =
                 (int)GetDlgItemInt(dlg, IDC_MAX_TOKENS, &ok, FALSE);

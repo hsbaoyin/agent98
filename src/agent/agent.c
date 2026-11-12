@@ -161,9 +161,37 @@ static int tool_needs_confirm(const char *name)
     return def != NULL && def->needs_confirm;
 }
 
+/*
+ * Loop guard: a model that gets stuck tends to repeat the same tool call with
+ * the same arguments.  The third consecutive identical call is answered with
+ * an error instead of being executed, and a fourth one stops the run.  The
+ * signature is "name\x1farguments" so names and arguments cannot collide.
+ */
+static int guard_matches(const Str *sig, const char *name, const char *args)
+{
+    size_t nlen = strlen(name);
+    size_t alen = strlen(args);
+
+    return sig->len == nlen + 1 + alen &&
+           memcmp(sig->data, name, nlen) == 0 &&
+           sig->data[nlen] == '\x1f' &&
+           memcmp(sig->data + nlen + 1, args, alen) == 0;
+}
+
+static void guard_record(Str *sig, const char *name, const char *args)
+{
+    str_clear(sig);
+    str_append_cstr(sig, name);
+    str_append_char(sig, '\x1f');
+    str_append_cstr(sig, args);
+}
+
 int agent_run(Agent *a, const char *user_text, char *err, size_t errcap)
 {
     int step;
+    int unlimited;
+    Str guard_sig;
+    int guard_count = 0;
 
     if (a == NULL || a->cfg == NULL || user_text == NULL) {
         return -1;
@@ -176,23 +204,40 @@ int agent_run(Agent *a, const char *user_text, char *err, size_t errcap)
         a->workspace[sizeof(a->workspace) - 1] = '\0';
     }
     agent_ensure_dirs(a);
+    str_init(&guard_sig);
     if (msglist_add(&a->messages, MSG_USER, user_text) == NULL) {
+        str_free(&guard_sig);
         snprintf(err, errcap, "out of memory");
         return -1;
     }
+    /* max_steps == 0 means "no limit": stop only when the model finishes or
+     * the user cancels. */
+    unlimited = a->cfg->max_steps <= 0;
 
-    for (step = 0; step < a->cfg->max_steps; step++) {
+    for (step = 0; ; step++) {
         ChatResult res;
         char *calls_json = NULL;
         char roundbuf[64];
-        char *calls_text = NULL;
         int rc;
+        int guard_tripped = 0;
 
+        if (!unlimited && step >= a->cfg->max_steps) {
+            str_free(&guard_sig);
+            snprintf(err, errcap, "stopped after %d tool rounds (max_steps)",
+                     a->cfg->max_steps);
+            return -1;
+        }
         if (a->cancel != NULL && *a->cancel) {
+            str_free(&guard_sig);
             snprintf(err, errcap, "cancelled by user");
             return -1;
         }
-        sprintf(roundbuf, "Thinking (round %d/%d)...", step + 1, a->cfg->max_steps);
+        if (unlimited) {
+            sprintf(roundbuf, "Thinking (round %d)...", step + 1);
+        } else {
+            sprintf(roundbuf, "Thinking (round %d/%d)...", step + 1,
+                    a->cfg->max_steps);
+        }
         emit(a, AGENT_EV_ROUND, roundbuf);
         chat_result_init(&res);
 
@@ -200,6 +245,7 @@ int agent_run(Agent *a, const char *user_text, char *err, size_t errcap)
                       text_cb, a, a->cancel, err, errcap);
         if (rc != 0) {
             chat_result_free(&res);
+            str_free(&guard_sig);
             if (err != NULL && errcap > 0 && err[0] == '\0') {
                 snprintf(err, errcap, "API request failed");
             }
@@ -207,30 +253,30 @@ int agent_run(Agent *a, const char *user_text, char *err, size_t errcap)
         }
 
         calls_json = calls_to_json(&res);
+        if (calls_json != NULL) {
+            log_debug("tool calls: %s", calls_json);
+        }
         if (msglist_add_assistant(&a->messages,
                                   res.content.data ? res.content.data : "",
                                   calls_json) == NULL) {
-            a98_free(calls_json);
+            cJSON_free(calls_json);
             chat_result_free(&res);
+            str_free(&guard_sig);
             snprintf(err, errcap, "out of memory");
             return -1;
         }
-        a98_free(calls_json);
+        cJSON_free(calls_json);
 
         if (res.call_count == 0) {
             if (res.content.len == 0) {
                 chat_result_free(&res);
+                str_free(&guard_sig);
                 snprintf(err, errcap, "model returned an empty response");
                 return -1;
             }
             chat_result_free(&res);
+            str_free(&guard_sig);
             return 0;
-        }
-
-        calls_text = calls_to_json(&res);
-        if (calls_text != NULL) {
-            log_debug("tool calls: %s", calls_text);
-            cJSON_free(calls_text);
         }
 
         {
@@ -243,9 +289,11 @@ int agent_run(Agent *a, const char *user_text, char *err, size_t errcap)
                 char tool_err[512];
                 char *summary;
                 int allowed = 1;
+                int blocked = 0;
 
                 if (a->cancel != NULL && *a->cancel) {
                     chat_result_free(&res);
+                    str_free(&guard_sig);
                     snprintf(err, errcap, "cancelled by user");
                     return -1;
                 }
@@ -253,16 +301,52 @@ int agent_run(Agent *a, const char *user_text, char *err, size_t errcap)
                 emit(a, AGENT_EV_TOOL_START, summary ? summary : name);
                 a98_free(summary);
 
-                if (tool_needs_confirm(name) && a->on_confirm != NULL) {
-                    allowed = a->on_confirm(a->confirm_ctx, name, args);
+                if (guard_tripped) {
+                    /* The run is already stopping; still answer this call so
+                     * the history stays valid for the next user turn. */
+                    blocked = 1;
+                } else if (guard_matches(&guard_sig, name, args)) {
+                    guard_count++;
+                    if (guard_count >= 3) {
+                        blocked = 1;
+                        if (guard_count >= 4) {
+                            guard_tripped = 1;
+                        }
+                    }
+                } else {
+                    guard_record(&guard_sig, name, args);
+                    guard_count = 1;
                 }
+
                 str_init(&out);
                 tool_err[0] = '\0';
-                if (!allowed) {
-                    str_append_cstr(&out, "Tool execution denied by the user.");
-                } else if (tools_execute(a, name, args, &out, tool_err,
-                                         sizeof(tool_err)) != 0) {
-                    str_appendf(&out, "Tool error: %s", tool_err);
+                if (blocked) {
+                    if (guard_tripped) {
+                        str_appendf(&out,
+                                    "Tool call blocked by loop guard: %s was "
+                                    "called with identical arguments %d times "
+                                    "in a row. The run is being stopped; do not "
+                                    "repeat this call.", name, guard_count);
+                    } else {
+                        str_appendf(&out,
+                                    "Tool call blocked by loop guard: %s was "
+                                    "called with identical arguments %d times "
+                                    "in a row. Do not repeat it; use different "
+                                    "arguments or a different tool, or finish "
+                                    "and answer the user.", name, guard_count);
+                    }
+                    log_warn("loop guard: blocked repeated tool call %s (x%d)",
+                             name, guard_count);
+                } else {
+                    if (tool_needs_confirm(name) && a->on_confirm != NULL) {
+                        allowed = a->on_confirm(a->confirm_ctx, name, args);
+                    }
+                    if (!allowed) {
+                        str_append_cstr(&out, "Tool execution denied by the user.");
+                    } else if (tools_execute(a, name, args, &out, tool_err,
+                                             sizeof(tool_err)) != 0) {
+                        str_appendf(&out, "Tool error: %s", tool_err);
+                    }
                 }
                 truncate_output(&out);
                 emit(a, AGENT_EV_TOOL_RESULT, str_cstr(&out));
@@ -271,6 +355,7 @@ int agent_run(Agent *a, const char *user_text, char *err, size_t errcap)
                                      name, str_cstr(&out)) == NULL) {
                     str_free(&out);
                     chat_result_free(&res);
+                    str_free(&guard_sig);
                     snprintf(err, errcap, "out of memory");
                     return -1;
                 }
@@ -278,10 +363,15 @@ int agent_run(Agent *a, const char *user_text, char *err, size_t errcap)
             }
         }
         chat_result_free(&res);
-    }
 
-    snprintf(err, errcap, "stopped after %d tool rounds (max_steps)", a->cfg->max_steps);
-    return -1;
+        if (guard_tripped) {
+            str_free(&guard_sig);
+            snprintf(err, errcap,
+                     "loop guard stopped the run: the model kept repeating "
+                     "the same tool call");
+            return -1;
+        }
+    }
 }
 
 /* ------------------------------------------------------------------ */
