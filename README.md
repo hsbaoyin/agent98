@@ -192,7 +192,13 @@ level=3
 ```
 
 `workspace` defaults to the `workspace` folder next to the executable. The log
-is written to `agent98.log` in the same directory.
+is written to `agent98.log` in the same directory. The example above keeps
+`allow_shell` off; if you turn it on, every `run_command` still stops for a
+confirmation dialog, and `write_file` always does.
+
+Note: the compiled-in default for `allow_shell` is 1, while `dist/SAMPLE.INI`
+ships with 0. Check the value in `agent98.ini` before handing the machine to a
+model you do not trust.
 
 To run against Ollama or another local model server instead of a cloud API:
 
@@ -573,7 +579,11 @@ level=3
 ```
 
 `workspace` 默认是 exe 同目录下的 `workspace`。日志写入 exe 同目录的
-`agent98.log`。
+`agent98.log`。上面的示例关闭了 `allow_shell`；即使打开，每次 `run_command`
+仍会弹出确认框，`write_file` 则始终需要确认。
+
+注意：`allow_shell` 的编译内置默认值是 1，而 `dist/SAMPLE.INI` 给的是 0。
+把机器交给不可信的模型之前，先确认 `agent98.ini` 里的实际值。
 
 要连 Ollama 或其他本地模型服务（而不是云端 API）：
 
