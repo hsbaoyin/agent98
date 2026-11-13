@@ -7,14 +7,20 @@
 [![Latest release](https://img.shields.io/github/v/release/hsbaoyin/windows98-llm?label=download)](https://github.com/hsbaoyin/windows98-llm/releases/latest)
 [![No relay](https://img.shields.io/badge/relay%20box-not%20required-brightgreen)](#)
 
-**ChatGPT on Windows 98.**
-**在 Windows 98 上直接跑 ChatGPT。**
+**ChatGPT on Windows 98 — with a filesystem.**
+**在 Windows 98 上直接跑 ChatGPT，还能动手改文件。**
 
-A native 32-bit Win32 AI chat client for Windows 9x. One ~400 KB EXE completes
-a TLS 1.2 handshake on a Pentium and talks to OpenAI-compatible APIs directly —
-no relay PC, no proxy, no patched system libraries, no Linux box in the corner.
-一个约 400 KB 的原生 Win32 程序，在 Pentium 上完成 TLS 1.2 握手，直连
-OpenAI 兼容 API —— 不需要中转机、不需要代理、不改造系统库。
+A native 32-bit Win32 AI **agent** for Windows 9x. It does not just print text
+into a window: it reads and writes files, walks directories, searches source
+and runs `COMMAND.COM` commands on the 9x machine itself, inside a workspace
+sandbox and behind a confirmation prompt. One ~400 KB EXE completes the TLS 1.2
+handshake on a Pentium and talks to any OpenAI-compatible endpoint — Ollama and
+local models included. No relay PC, no proxy, no patched system libraries.
+一个 32 位原生 Win32 **AI agent**（智能体）。它不只是往窗口里打字：它能在 9x
+机器上读写文件、遍历目录、搜索源码、执行 `COMMAND.COM` 命令，受 workspace
+沙箱约束并需要确认。一个约 400 KB 的 EXE 在 Pentium 上完成 TLS 1.2 握手，
+直连任意 OpenAI 兼容端点（包括 Ollama 和本地模型）—— 不需要中转机、不需要
+代理、不改造系统库。
 
 > **[Download the latest release](https://github.com/hsbaoyin/windows98-llm/releases/latest)**
 > — unzip into `C:\AGENT98`, edit `AGENT98.INI`, run `AGENT98.EXE`.
@@ -33,17 +39,39 @@ Agent98 does the whole job on the 9x machine. DNS, TCP, a TLS 1.2 handshake
 with ECDHE and AES-GCM, chunked HTTP, SSE streaming, JSON parsing and the
 agent loop all run inside one 32-bit process on top of Winsock 2 and BearSSL.
 Point it at any OpenAI-compatible endpoint and a Pentium II can hold a
-conversation.
+conversation and edit its own files.
+
+### Not just a chat window
+
+A chat client on a retro PC is a demo: you ask a question, it prints an answer,
+the answer is gone. The reason to put an agent on a 1998 machine is that the
+machine has files, and the model can reach them.
+
+- `read_file`, `write_file`, `list_dir`, `search_files` and `run_command` run
+  on the 9x box itself, not on a server somewhere else
+- every path is resolved through `GetFullPathName` and checked against the
+  workspace root, so `..` cannot walk out of the sandbox (`allow_outside=0`,
+  the default)
+- writes and shell commands stop and ask first; the confirmation dialog shows
+  the exact path or command line
+- a loop guard blocks the third identical tool call in a row and stops the run
+  on the fourth, so a confused model cannot spin forever
+- `write_file` converts UTF-8 to the local ANSI code page and LF to DOS CRLF,
+  so the files it produces open correctly in Win98 Notepad, `EDIT` and
+  `COMMAND.COM`
 
 ### Highlights
 
+- **Agent, not a chat window:** filesystem and shell tools that execute on the
+  9x machine, sandboxed to the workspace, gated by a confirmation dialog and a
+  loop guard
+- **Any OpenAI-compatible endpoint:** OpenAI, Ollama, LM Studio, vLLM, DeepSeek,
+  Moonshot/Kimi, SiliconFlow, OpenRouter or a self-hosted gateway — local models
+  need no API key
 - C / Win32, built with OpenWatcom 2.0
-- BearSSL 0.6 (TLS 1.2, bundled Mozilla trust anchors)
-- cJSON
+- BearSSL 0.6 (TLS 1.2, bundled Mozilla trust anchors) and cJSON, both vendored
 - Console client `a98.exe` and native GUI `agent98.exe` sharing one `agent98.ini`
-- OpenAI-compatible Chat Completions API, streaming and non-streaming
-- Local tools: read file, write file, list directory, search files, run command
-  (writes and shell commands require confirmation)
+- Streaming and non-streaming Chat Completions
 - Automatic runtime environment block injected into the prompt (Windows version,
   workspace, 16-bit `COMMAND.COM` constraints)
 
@@ -165,6 +193,17 @@ level=3
 
 `workspace` defaults to the `workspace` folder next to the executable. The log
 is written to `agent98.log` in the same directory.
+
+To run against Ollama or another local model server instead of a cloud API:
+
+```ini
+[api]
+base=http://192.168.1.10:11434/v1
+key=ollama
+model=llama3.1
+```
+
+Plain `http://` is supported, so a LAN endpoint needs no TLS at all.
 
 #### GUI settings
 
@@ -389,19 +428,37 @@ HTTPS，老机器只跑一个终端。那不是 Windows 98 应用，那是绕了
 Agent98 把整件事放在 9x 机器上：DNS、TCP、带 ECDHE 和 AES-GCM 的 TLS 1.2
 握手、chunked HTTP、SSE 流式、JSON 解析、agent 循环，全部跑在一个 32 位
 进程里，只依赖 Winsock 2 和 BearSSL。接上任意 OpenAI 兼容端点，Pentium II
-就能开始对话。
+就能开始对话，并动手改它自己的文件。
+
+### 不只是聊天窗口
+
+在复古机器上跑一个聊天客户端只是个演示：问一句，它打一段字，然后没了。
+在 1998 年的机器上跑 agent 的意义在于 —— 这台机器上有文件，而模型能碰到它们。
+
+- `read_file`、`write_file`、`list_dir`、`search_files`、`run_command` 都在
+  9x 本机执行，不是转发到某台服务器
+- 所有路径先经 `GetFullPathName` 规范化，再和 workspace 根目录比对，`..`
+  走不出沙箱（`allow_outside=0`，默认值）
+- 写文件和执行命令会停下来先问，确认框里显示确切的路径或命令行
+- 循环守卫会拦下连续第三次完全相同的工具调用，第四次直接终止，避免模型
+  空转
+- `write_file` 会把 UTF-8 转成本地 ANSI 代码页、把 LF 转成 DOS CRLF，写出来
+  的文件在 Win98 记事本、`EDIT` 和 `COMMAND.COM` 里都能正常打开
 
 ### 简介
 
-Windows 9x（优先 Windows 98 SE）上的原生 AI 聊天客户端。程序直接通过
-BearSSL 连接现代 HTTPS LLM API，不依赖局域网中转机或第二台电脑。
+Windows 9x（优先 Windows 98 SE）上的原生 AI **agent**。程序直接通过
+BearSSL 连接现代 HTTPS LLM API，并在本机执行文件与命令工具，不依赖局域网
+中转机或第二台电脑。
 
+- **Agent 而不是聊天窗口**：文件系统与 shell 工具在本机执行，受 workspace
+  沙箱约束，带确认机制和循环守卫
+- **任意 OpenAI 兼容端点**：OpenAI、Ollama、LM Studio、vLLM、DeepSeek、
+  Moonshot/Kimi、SiliconFlow、OpenRouter 或自建网关；本地模型不需要 API key
 - C / Win32，OpenWatcom 2.0 构建
-- BearSSL 0.6（TLS 1.2，内置 Mozilla 根证书）
-- cJSON
+- BearSSL 0.6（TLS 1.2，内置 Mozilla 根证书）与 cJSON，均已内置源码
 - 命令行 `a98.exe` 与原生 GUI `agent98.exe` 共用同一份 `agent98.ini`
-- OpenAI 兼容的 Chat Completions 接口，支持流式与非流式
-- 本地工具：读文件、写文件、列目录、搜索文件、执行命令（需确认）
+- 支持流式与非流式 Chat Completions
 - 自动向模型注入运行环境（Windows 版本、workspace、COMMAND.COM 约束）
 
 ### 发布文件
@@ -517,6 +574,17 @@ level=3
 
 `workspace` 默认是 exe 同目录下的 `workspace`。日志写入 exe 同目录的
 `agent98.log`。
+
+要连 Ollama 或其他本地模型服务（而不是云端 API）：
+
+```ini
+[api]
+base=http://192.168.1.10:11434/v1
+key=ollama
+model=llama3.1
+```
+
+程序支持明文 `http://`，局域网端点完全不需要 TLS。
 
 #### GUI 设置
 
