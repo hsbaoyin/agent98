@@ -52,6 +52,15 @@
 #ifndef GWL_WNDPROC
 #define GWL_WNDPROC GWLP_WNDPROC
 #endif
+#ifndef GB2312_CHARSET
+#define GB2312_CHARSET 134
+#endif
+#ifndef SHIFTJIS_CHARSET
+#define SHIFTJIS_CHARSET 128
+#endif
+#ifndef HANGUL_CHARSET
+#define HANGUL_CHARSET 129
+#endif
 
 #define A98_WM_EVENT   (WM_APP + 1)
 #define A98_WM_DONE    (WM_APP + 2)
@@ -119,6 +128,7 @@ typedef struct {
     int rich;               /* 0 = EDIT, 1 = RichEdit 1.0, 2 = RichEdit 2.0 */
     HINSTANCE rich_dll;
     char mono_face[LF_FACESIZE];
+    BYTE mono_charset;
 
     Config cfg;
     char ini_path[A98_MAX_PATH];
@@ -333,18 +343,22 @@ static void transcript_apply_format(App *app, LONG start, LONG end,
         CHARFORMAT2A cf;
         memset(&cf, 0, sizeof(cf));
         cf.cbSize = sizeof(cf);
-        cf.dwMask = CFM_COLOR | CFM_BOLD;
+        cf.dwMask = CFM_COLOR | CFM_BOLD | CFM_FACE | CFM_CHARSET;
         cf.dwEffects = bold ? CFE_BOLD : 0;
         cf.crTextColor = color;
+        cf.bCharSet = app->mono_charset;
+        copy_str(cf.szFaceName, sizeof(cf.szFaceName), app->mono_face);
         SendMessageA(app->transcript, EM_SETCHARFORMAT, SCF_SELECTION,
                      (LPARAM)&cf);
     } else {
         CHARFORMAT cf;
         memset(&cf, 0, sizeof(cf));
         cf.cbSize = sizeof(cf);
-        cf.dwMask = CFM_COLOR | CFM_BOLD;
+        cf.dwMask = CFM_COLOR | CFM_BOLD | CFM_FACE | CFM_CHARSET;
         cf.dwEffects = bold ? CFE_BOLD : 0;
         cf.crTextColor = color;
+        cf.bCharSet = app->mono_charset;
+        copy_str(cf.szFaceName, sizeof(cf.szFaceName), app->mono_face);
         SendMessageA(app->transcript, EM_SETCHARFORMAT, SCF_SELECTION,
                      (LPARAM)&cf);
     }
@@ -401,6 +415,13 @@ static void transcript_append_colored(App *app, const char *utf8,
         SendMessageA(app->transcript, EM_EXSETSEL, 0, (LPARAM)&cr);
         start = cr.cpMax;
 
+        /* Give the insertion point the CJK-capable face and charset before
+         * inserting.  RichEdit 2.0 on Windows 9x otherwise lets the first
+         * character of a DBCS run keep the previous run's ANSI charset, so
+         * GDI substitutes a font that has no Chinese glyphs and only that
+         * first character comes out as a box. */
+        transcript_apply_format(app, start, start, color, bold);
+
         SendMessageA(app->transcript, EM_REPLACESEL, (WPARAM)FALSE,
                      (LPARAM)acp);
         SendMessageA(app->transcript, EM_EXGETSEL, 0, (LPARAM)&cr);
@@ -452,7 +473,7 @@ static void transcript_set_default_format(App *app)
         cf.dwEffects = 0;
         cf.yHeight = A98_TRANSCRIPT_POINTS * A98_TWIPS_PER_POINT;
         cf.crTextColor = COL_AI;
-        cf.bCharSet = DEFAULT_CHARSET;
+        cf.bCharSet = app->mono_charset;
         copy_str(cf.szFaceName, sizeof(cf.szFaceName), app->mono_face);
         SendMessageA(app->transcript, EM_SETCHARFORMAT, SCF_DEFAULT,
                      (LPARAM)&cf);
@@ -467,7 +488,7 @@ static void transcript_set_default_format(App *app)
         cf.dwEffects = 0;
         cf.yHeight = A98_TRANSCRIPT_POINTS * A98_TWIPS_PER_POINT;
         cf.crTextColor = COL_AI;
-        cf.bCharSet = DEFAULT_CHARSET;
+        cf.bCharSet = app->mono_charset;
         copy_str(cf.szFaceName, sizeof(cf.szFaceName), app->mono_face);
         SendMessageA(app->transcript, EM_SETCHARFORMAT, SCF_DEFAULT,
                      (LPARAM)&cf);
@@ -2327,6 +2348,7 @@ static HFONT make_mono_font(App *app)
     int height;
     UINT acp;
     const char *face;
+    BYTE charset;
 
     memset(&lf, 0, sizeof(lf));
     hdc = GetDC(NULL);
@@ -2336,7 +2358,6 @@ static HFONT make_mono_font(App *app)
 
     lf.lfHeight = height;
     lf.lfWeight = FW_NORMAL;
-    lf.lfCharSet = DEFAULT_CHARSET;
     lf.lfOutPrecision = OUT_DEFAULT_PRECIS;
     lf.lfClipPrecision = CLIP_DEFAULT_PRECIS;
     lf.lfQuality = DEFAULT_QUALITY;
@@ -2345,15 +2366,24 @@ static HFONT make_mono_font(App *app)
     acp = GetACP();
     if (acp == 936) {
         face = "NSimSun";
+        charset = GB2312_CHARSET;
     } else if (acp == 932) {
         face = "MS Gothic";
+        charset = SHIFTJIS_CHARSET;
     } else if (acp == 949) {
         face = "GulimChe";
+        charset = HANGUL_CHARSET;
     } else {
         face = "Fixedsys";
+        charset = ANSI_CHARSET;
     }
+    /* Pin the charset instead of using DEFAULT_CHARSET.  A run whose charset
+     * does not match the face makes GDI pick a substitute font, which on a
+     * DBCS system is a Latin face with no CJK glyphs. */
+    lf.lfCharSet = charset;
     copy_str(lf.lfFaceName, sizeof(lf.lfFaceName), face);
     copy_str(app->mono_face, sizeof(app->mono_face), face);
+    app->mono_charset = charset;
     return CreateFontIndirectA(&lf);
 }
 

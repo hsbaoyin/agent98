@@ -36,6 +36,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   to 0..4.
 - `apply_patch` aborts when the `.bak` backup cannot be written, instead of
   editing without a recovery copy.
+- The GUI transcript uses the system CJK charset (`GB2312_CHARSET` on code page
+  936, `SHIFTJIS_CHARSET` on 932, `HANGUL_CHARSET` on 949) for the mono font and
+  for every inserted run. On Windows 9x/RichEdit 2.0 the first character of a
+  Chinese answer used to inherit the previous run's ANSI charset, so GDI
+  substituted a font without CJK glyphs and only that character came out as a
+  box.
 
 ## [0.2.0] - 2026-11-13
 
