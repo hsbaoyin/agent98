@@ -10,6 +10,17 @@ $bearssl = Get-ChildItem third_party\bearssl\src -Recurse -Filter *.c | Sort-Obj
 
 function Rel($p) { (Resolve-Path -Relative $p).TrimStart('.', '\', '/') -replace '/', '\' }
 
+# wmake has no dependency discovery of its own.  Without an explicit header
+# list, editing src/core/config.h did not rebuild the modules that include it,
+# which leaves objects compiled against different struct layouts in the same
+# executable.  Over-building costs a few seconds; a stale build costs an
+# afternoon of chasing random crashes.
+$headers = @()
+$headers += Get-ChildItem src -Recurse -Filter *.h |
+    Sort-Object FullName | ForEach-Object { Rel $_.FullName }
+$headers += 'third_party\cjson\cJSON.h'
+$headerDeps = ($headers -join ' ')
+
 $rules = New-Object System.Collections.Generic.List[string]
 $projectObjs = New-Object System.Collections.Generic.List[string]
 
@@ -23,15 +34,18 @@ foreach ($f in $project) {
     $src = Rel $f.FullName
     $obj = 'build\ow\obj\' + $f.BaseName + '.obj'
     $projectObjs.Add($obj)
-    $rules.Add("$obj`: $src")
-    $rules.Add("`t`$(CC) `$(PROJECT_CFLAGS) -fo=`$@ `$<")
+    # The recipe names $src explicitly instead of using wmake's $<: in
+    # OpenWatcom wmake, $< expands to *all* prerequisites, so listing the
+    # headers there would pass them to the compiler as extra source files.
+    $rules.Add("$obj`: $src $headerDeps")
+    $rules.Add("`t`$(CC) `$(PROJECT_CFLAGS) -fo=`$@ $src")
     $rules.Add('')
 }
 
 $cjson = 'build\ow\obj\cjson.obj'
 $projectObjs.Add($cjson)
-$rules.Add("$cjson`: third_party\cjson\cJSON.c")
-$rules.Add("`t`$(CC) `$(PROJECT_CFLAGS) -DCJSON_HIDE_SYMBOLS -fo=`$@ `$<")
+$rules.Add("$cjson`: third_party\cjson\cJSON.c third_party\cjson\cJSON.h")
+$rules.Add("`t`$(CC) `$(PROJECT_CFLAGS) -DCJSON_HIDE_SYMBOLS -fo=`$@ third_party\cjson\cJSON.c")
 $rules.Add('')
 
 $bearsslObjs = New-Object System.Collections.Generic.List[string]
@@ -40,7 +54,7 @@ foreach ($f in $bearssl) {
     $obj = 'build\ow\obj\bearssl\' + $f.BaseName + '.obj'
     $bearsslObjs.Add($obj)
     $rules.Add("$obj`: $src")
-    $rules.Add("`t`$(CC) `$(BEARSSL_CFLAGS) -fo=`$@ `$<")
+    $rules.Add("`t`$(CC) `$(BEARSSL_CFLAGS) -fo=`$@ $src")
     $rules.Add('')
 }
 

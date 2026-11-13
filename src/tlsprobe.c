@@ -101,12 +101,11 @@ int main(int argc, char **argv)
         printf("Peer: %s\n", peer);
     }
 
-    snprintf(headers, sizeof(headers),
-             "Host: %s\r\n"
-             "User-Agent: Agent98-tlsprobe/0.1\r\n"
-             "Accept: application/json\r\n"
-             "Connection: close\r\n",
-             url.host);
+    /* Only the headers the transport does not add itself: build_request()
+     * always sends Host, User-Agent and Connection, and http_request() skips
+     * its default Accept when this block supplies one.  Sending Host here too
+     * used to put two Host headers on the wire. */
+    strcpy(headers, "Accept: application/json\r\n");
 
     memset(&resp, 0, sizeof(resp));
     memset(&sink, 0, sizeof(sink));
@@ -136,5 +135,6 @@ int main(int argc, char **argv)
 
     net_close(conn);
     net_cleanup();
+    log_shutdown();
     return 0;
 }

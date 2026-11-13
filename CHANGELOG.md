@@ -3,6 +3,40 @@
 All notable changes to Agent98 are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- 26 new tools (31 total): `mkdir`, `delete_file`, `rmdir`, `rmdir_force`,
+  `move_file`, `copy_file`, `append_file`, `edit`, `apply_patch`, `touch`,
+  `set_attr`, `file_info`, `head`, `tail`, `grep`, `glob`, `tree`, `wc`,
+  `which`, `diff`, `checksum`, `disk_info`, `env`, `session_info`,
+  `todo_read` and `todo_write`.
+- Confirmation summaries with a risk level (`tools_format_confirm`): HIGH RISK
+  calls default to Deny in the GUI and require typing `YES` in the CLI.
+- CLI: `--ini`, `--workspace`, `--message`, `--yes`, `--no-shell`, and the
+  `/tools`, `/stop`, `/export`, `/workspace` and `/model` commands; `/config`
+  masks the API key.
+- GUI: **Tools -> List tools...** and Esc to stop the current run.
+- Tool arguments are redacted (`api_key`, `token`, `password`, ...) before they
+  reach the log.
+
+### Fixed
+
+- `rmdir_force` only refused the workspace root when `workspace=` was absolute
+  and had no trailing separator. Both paths are normalised now, so a relative
+  or trailing-slash workspace can no longer be deleted recursively.
+- The GUI confirmation dialog forced focus back to Allow after marking a HIGH
+  RISK call. Cancel is now the default button and keeps the focus.
+- `env` requires confirmation instead of handing any environment variable
+  (including API keys) to the model without a prompt.
+- CLI `/export` writes CP_ACP with CRLF like `write_file` and the GUI exporter,
+  instead of raw UTF-8 with bare LF.
+- The CLI honours `[log] level` instead of forcing DEBUG; the value is clamped
+  to 0..4.
+- `apply_patch` aborts when the `.bak` backup cannot be written, instead of
+  editing without a recovery copy.
+
 ## [0.2.0] - 2026-11-13
 
 First packaged release: the GUI gets the retro transcript, session history and
@@ -35,6 +69,47 @@ hammering the same tool call.
   (`Ctrl+E`), a native status bar with a spinner and round counter, and
   **Tools -> Open workspace** / **Workspace** (ShellExecuteA).
 
+### Fixed
+
+- The console client no longer drops streamed text when a provider splits a
+  multi-byte character across two deltas: the partial sequence was overwritten
+  with a NUL before it was moved to the front of the buffer, which also lost
+  the chunk that followed.
+- `write_file` output truncation in the agent loop backs off to a UTF-8
+  character boundary. Trimming the last byte of a *complete* multi-byte
+  character used to leave an invalid sequence in the request.
+- Streaming tool calls whose `name`/`id` are repeated in every delta no longer
+  become `list_dirlist_dir` (unknown tool) or a mangled `tool_call_id`
+  (HTTP 400 on the following round).
+- `run_command` builds its temporary output path with `snprintf()`; the old
+  `sprintf()` could overflow a 260-byte stack buffer when TEMP is long.
+- A long `system_prompt` in the INI is no longer truncated to 519 bytes, and a
+  truncated value is logged instead of being written back silently.
+- `config_save()` reports write failures, so a read-only directory (CD-ROM,
+  network share) surfaces the error instead of losing settings silently.
+- `allow_shell` now defaults to 0, matching `dist/SAMPLE.INI` and this README.
+  A fresh install no longer enables shell execution implicitly.
+- `--insecure` in the TLS probe and `tls.verify=0` now really skip
+  certificate-name matching (self-signed hosts and bare IP addresses work).
+  Previously the X.509 engine was replaced with nothing, so the handshake had
+  no server key at all.
+- Paths reported by the tools keep their on-disk spelling; the sandbox check
+  used to lower-case the resolved path before handing it back.
+- The TLS probe no longer sends a second `Host` header, and the transport only
+  adds its default `Accept` when the caller did not supply one.
+- `api_key`/`extra_headers` values are stripped of CR/LF before they go on the
+  wire, instead of splitting or injecting headers.
+- The confirmation dialog can no longer be abandoned by the worker thread: the
+  dialog owns the request struct until it signals, so cancelling while it was
+  pending could read freed memory and signal a closed handle.
+- `log_write()` is serialised with a critical section and copies the
+  `localtime()` result; session timestamps use `GetLocalTime()`.
+- `ow/rules.mk` lists the project headers as dependencies, so editing a header
+  rebuilds every module that includes it (wmake has no dependency discovery of
+  its own).
+- The GUI dialog procedures use `INT_PTR CALLBACK` and the 64-bit-safe
+  `GWLP_WNDPROC`, so the MinGW/CMake GUI target compiles again.
+
 ### Changed
 
 - Default `agent.max_steps` raised from 8 to 32. A value of 0 now means
@@ -45,6 +120,8 @@ hammering the same tool call.
   receives an error tool result asking for a different approach, and a fourth
   identical call stops the run. Blocked calls still produce a tool message, so
   the conversation history stays valid.
+- The loop guard also compares whole rounds, so a model alternating between two
+  different calls is stopped as well. The two counters are independent.
 - README is now bilingual: full English documentation followed by the
   Simplified Chinese original, with language links at the top.
 

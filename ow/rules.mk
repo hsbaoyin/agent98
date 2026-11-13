@@ -3,899 +3,899 @@
 PROJECT_CFLAGS = -c -bt=nt -bm -zq -za99 -ox -i=src -i=src\core -i=src\agent -i=src\net -i=src\gui -i=third_party\cjson -i=third_party\bearssl\inc -i=third_party\bearssl\src
 BEARSSL_CFLAGS = -c -bt=nt -bm -zq -ox -i=third_party\bearssl\inc -i=third_party\bearssl\src
 
-build\ow\obj\agent.obj: src\agent\agent.c
-	$(CC) $(PROJECT_CFLAGS) -fo=$@ $<
+build\ow\obj\agent.obj: src\agent\agent.c src\agent\agent.h src\agent\api_openai.h src\agent\jsonutil.h src\agent\message.h src\agent\tools.h src\core\base.h src\core\config.h src\core\log.h src\core\path.h src\core\str.h src\core\utf8.h src\gui\resource.h src\net\body.h src\net\http.h src\net\net.h src\net\sse.h src\net\url.h src\trust_anchors.h third_party\cjson\cJSON.h
+	$(CC) $(PROJECT_CFLAGS) -fo=$@ src\agent\agent.c
 
-build\ow\obj\api_openai.obj: src\agent\api_openai.c
-	$(CC) $(PROJECT_CFLAGS) -fo=$@ $<
+build\ow\obj\api_openai.obj: src\agent\api_openai.c src\agent\agent.h src\agent\api_openai.h src\agent\jsonutil.h src\agent\message.h src\agent\tools.h src\core\base.h src\core\config.h src\core\log.h src\core\path.h src\core\str.h src\core\utf8.h src\gui\resource.h src\net\body.h src\net\http.h src\net\net.h src\net\sse.h src\net\url.h src\trust_anchors.h third_party\cjson\cJSON.h
+	$(CC) $(PROJECT_CFLAGS) -fo=$@ src\agent\api_openai.c
 
-build\ow\obj\jsonutil.obj: src\agent\jsonutil.c
-	$(CC) $(PROJECT_CFLAGS) -fo=$@ $<
+build\ow\obj\jsonutil.obj: src\agent\jsonutil.c src\agent\agent.h src\agent\api_openai.h src\agent\jsonutil.h src\agent\message.h src\agent\tools.h src\core\base.h src\core\config.h src\core\log.h src\core\path.h src\core\str.h src\core\utf8.h src\gui\resource.h src\net\body.h src\net\http.h src\net\net.h src\net\sse.h src\net\url.h src\trust_anchors.h third_party\cjson\cJSON.h
+	$(CC) $(PROJECT_CFLAGS) -fo=$@ src\agent\jsonutil.c
 
-build\ow\obj\message.obj: src\agent\message.c
-	$(CC) $(PROJECT_CFLAGS) -fo=$@ $<
+build\ow\obj\message.obj: src\agent\message.c src\agent\agent.h src\agent\api_openai.h src\agent\jsonutil.h src\agent\message.h src\agent\tools.h src\core\base.h src\core\config.h src\core\log.h src\core\path.h src\core\str.h src\core\utf8.h src\gui\resource.h src\net\body.h src\net\http.h src\net\net.h src\net\sse.h src\net\url.h src\trust_anchors.h third_party\cjson\cJSON.h
+	$(CC) $(PROJECT_CFLAGS) -fo=$@ src\agent\message.c
 
-build\ow\obj\tools.obj: src\agent\tools.c
-	$(CC) $(PROJECT_CFLAGS) -fo=$@ $<
+build\ow\obj\tools.obj: src\agent\tools.c src\agent\agent.h src\agent\api_openai.h src\agent\jsonutil.h src\agent\message.h src\agent\tools.h src\core\base.h src\core\config.h src\core\log.h src\core\path.h src\core\str.h src\core\utf8.h src\gui\resource.h src\net\body.h src\net\http.h src\net\net.h src\net\sse.h src\net\url.h src\trust_anchors.h third_party\cjson\cJSON.h
+	$(CC) $(PROJECT_CFLAGS) -fo=$@ src\agent\tools.c
 
-build\ow\obj\base.obj: src\core\base.c
-	$(CC) $(PROJECT_CFLAGS) -fo=$@ $<
+build\ow\obj\base.obj: src\core\base.c src\agent\agent.h src\agent\api_openai.h src\agent\jsonutil.h src\agent\message.h src\agent\tools.h src\core\base.h src\core\config.h src\core\log.h src\core\path.h src\core\str.h src\core\utf8.h src\gui\resource.h src\net\body.h src\net\http.h src\net\net.h src\net\sse.h src\net\url.h src\trust_anchors.h third_party\cjson\cJSON.h
+	$(CC) $(PROJECT_CFLAGS) -fo=$@ src\core\base.c
 
-build\ow\obj\config.obj: src\core\config.c
-	$(CC) $(PROJECT_CFLAGS) -fo=$@ $<
+build\ow\obj\config.obj: src\core\config.c src\agent\agent.h src\agent\api_openai.h src\agent\jsonutil.h src\agent\message.h src\agent\tools.h src\core\base.h src\core\config.h src\core\log.h src\core\path.h src\core\str.h src\core\utf8.h src\gui\resource.h src\net\body.h src\net\http.h src\net\net.h src\net\sse.h src\net\url.h src\trust_anchors.h third_party\cjson\cJSON.h
+	$(CC) $(PROJECT_CFLAGS) -fo=$@ src\core\config.c
 
-build\ow\obj\log.obj: src\core\log.c
-	$(CC) $(PROJECT_CFLAGS) -fo=$@ $<
+build\ow\obj\log.obj: src\core\log.c src\agent\agent.h src\agent\api_openai.h src\agent\jsonutil.h src\agent\message.h src\agent\tools.h src\core\base.h src\core\config.h src\core\log.h src\core\path.h src\core\str.h src\core\utf8.h src\gui\resource.h src\net\body.h src\net\http.h src\net\net.h src\net\sse.h src\net\url.h src\trust_anchors.h third_party\cjson\cJSON.h
+	$(CC) $(PROJECT_CFLAGS) -fo=$@ src\core\log.c
 
-build\ow\obj\path.obj: src\core\path.c
-	$(CC) $(PROJECT_CFLAGS) -fo=$@ $<
+build\ow\obj\path.obj: src\core\path.c src\agent\agent.h src\agent\api_openai.h src\agent\jsonutil.h src\agent\message.h src\agent\tools.h src\core\base.h src\core\config.h src\core\log.h src\core\path.h src\core\str.h src\core\utf8.h src\gui\resource.h src\net\body.h src\net\http.h src\net\net.h src\net\sse.h src\net\url.h src\trust_anchors.h third_party\cjson\cJSON.h
+	$(CC) $(PROJECT_CFLAGS) -fo=$@ src\core\path.c
 
-build\ow\obj\str.obj: src\core\str.c
-	$(CC) $(PROJECT_CFLAGS) -fo=$@ $<
+build\ow\obj\str.obj: src\core\str.c src\agent\agent.h src\agent\api_openai.h src\agent\jsonutil.h src\agent\message.h src\agent\tools.h src\core\base.h src\core\config.h src\core\log.h src\core\path.h src\core\str.h src\core\utf8.h src\gui\resource.h src\net\body.h src\net\http.h src\net\net.h src\net\sse.h src\net\url.h src\trust_anchors.h third_party\cjson\cJSON.h
+	$(CC) $(PROJECT_CFLAGS) -fo=$@ src\core\str.c
 
-build\ow\obj\utf8.obj: src\core\utf8.c
-	$(CC) $(PROJECT_CFLAGS) -fo=$@ $<
+build\ow\obj\utf8.obj: src\core\utf8.c src\agent\agent.h src\agent\api_openai.h src\agent\jsonutil.h src\agent\message.h src\agent\tools.h src\core\base.h src\core\config.h src\core\log.h src\core\path.h src\core\str.h src\core\utf8.h src\gui\resource.h src\net\body.h src\net\http.h src\net\net.h src\net\sse.h src\net\url.h src\trust_anchors.h third_party\cjson\cJSON.h
+	$(CC) $(PROJECT_CFLAGS) -fo=$@ src\core\utf8.c
 
-build\ow\obj\main_gui.obj: src\gui\main_gui.c
-	$(CC) $(PROJECT_CFLAGS) -fo=$@ $<
+build\ow\obj\main_gui.obj: src\gui\main_gui.c src\agent\agent.h src\agent\api_openai.h src\agent\jsonutil.h src\agent\message.h src\agent\tools.h src\core\base.h src\core\config.h src\core\log.h src\core\path.h src\core\str.h src\core\utf8.h src\gui\resource.h src\net\body.h src\net\http.h src\net\net.h src\net\sse.h src\net\url.h src\trust_anchors.h third_party\cjson\cJSON.h
+	$(CC) $(PROJECT_CFLAGS) -fo=$@ src\gui\main_gui.c
 
-build\ow\obj\main.obj: src\main.c
-	$(CC) $(PROJECT_CFLAGS) -fo=$@ $<
+build\ow\obj\main.obj: src\main.c src\agent\agent.h src\agent\api_openai.h src\agent\jsonutil.h src\agent\message.h src\agent\tools.h src\core\base.h src\core\config.h src\core\log.h src\core\path.h src\core\str.h src\core\utf8.h src\gui\resource.h src\net\body.h src\net\http.h src\net\net.h src\net\sse.h src\net\url.h src\trust_anchors.h third_party\cjson\cJSON.h
+	$(CC) $(PROJECT_CFLAGS) -fo=$@ src\main.c
 
-build\ow\obj\body.obj: src\net\body.c
-	$(CC) $(PROJECT_CFLAGS) -fo=$@ $<
+build\ow\obj\body.obj: src\net\body.c src\agent\agent.h src\agent\api_openai.h src\agent\jsonutil.h src\agent\message.h src\agent\tools.h src\core\base.h src\core\config.h src\core\log.h src\core\path.h src\core\str.h src\core\utf8.h src\gui\resource.h src\net\body.h src\net\http.h src\net\net.h src\net\sse.h src\net\url.h src\trust_anchors.h third_party\cjson\cJSON.h
+	$(CC) $(PROJECT_CFLAGS) -fo=$@ src\net\body.c
 
-build\ow\obj\http.obj: src\net\http.c
-	$(CC) $(PROJECT_CFLAGS) -fo=$@ $<
+build\ow\obj\http.obj: src\net\http.c src\agent\agent.h src\agent\api_openai.h src\agent\jsonutil.h src\agent\message.h src\agent\tools.h src\core\base.h src\core\config.h src\core\log.h src\core\path.h src\core\str.h src\core\utf8.h src\gui\resource.h src\net\body.h src\net\http.h src\net\net.h src\net\sse.h src\net\url.h src\trust_anchors.h third_party\cjson\cJSON.h
+	$(CC) $(PROJECT_CFLAGS) -fo=$@ src\net\http.c
 
-build\ow\obj\net_tls.obj: src\net\net_tls.c
-	$(CC) $(PROJECT_CFLAGS) -fo=$@ $<
+build\ow\obj\net_tls.obj: src\net\net_tls.c src\agent\agent.h src\agent\api_openai.h src\agent\jsonutil.h src\agent\message.h src\agent\tools.h src\core\base.h src\core\config.h src\core\log.h src\core\path.h src\core\str.h src\core\utf8.h src\gui\resource.h src\net\body.h src\net\http.h src\net\net.h src\net\sse.h src\net\url.h src\trust_anchors.h third_party\cjson\cJSON.h
+	$(CC) $(PROJECT_CFLAGS) -fo=$@ src\net\net_tls.c
 
-build\ow\obj\sse.obj: src\net\sse.c
-	$(CC) $(PROJECT_CFLAGS) -fo=$@ $<
+build\ow\obj\sse.obj: src\net\sse.c src\agent\agent.h src\agent\api_openai.h src\agent\jsonutil.h src\agent\message.h src\agent\tools.h src\core\base.h src\core\config.h src\core\log.h src\core\path.h src\core\str.h src\core\utf8.h src\gui\resource.h src\net\body.h src\net\http.h src\net\net.h src\net\sse.h src\net\url.h src\trust_anchors.h third_party\cjson\cJSON.h
+	$(CC) $(PROJECT_CFLAGS) -fo=$@ src\net\sse.c
 
-build\ow\obj\url.obj: src\net\url.c
-	$(CC) $(PROJECT_CFLAGS) -fo=$@ $<
+build\ow\obj\url.obj: src\net\url.c src\agent\agent.h src\agent\api_openai.h src\agent\jsonutil.h src\agent\message.h src\agent\tools.h src\core\base.h src\core\config.h src\core\log.h src\core\path.h src\core\str.h src\core\utf8.h src\gui\resource.h src\net\body.h src\net\http.h src\net\net.h src\net\sse.h src\net\url.h src\trust_anchors.h third_party\cjson\cJSON.h
+	$(CC) $(PROJECT_CFLAGS) -fo=$@ src\net\url.c
 
-build\ow\obj\tlsprobe.obj: src\tlsprobe.c
-	$(CC) $(PROJECT_CFLAGS) -fo=$@ $<
+build\ow\obj\tlsprobe.obj: src\tlsprobe.c src\agent\agent.h src\agent\api_openai.h src\agent\jsonutil.h src\agent\message.h src\agent\tools.h src\core\base.h src\core\config.h src\core\log.h src\core\path.h src\core\str.h src\core\utf8.h src\gui\resource.h src\net\body.h src\net\http.h src\net\net.h src\net\sse.h src\net\url.h src\trust_anchors.h third_party\cjson\cJSON.h
+	$(CC) $(PROJECT_CFLAGS) -fo=$@ src\tlsprobe.c
 
-build\ow\obj\trust_anchors.obj: src\trust_anchors.c
-	$(CC) $(PROJECT_CFLAGS) -fo=$@ $<
+build\ow\obj\trust_anchors.obj: src\trust_anchors.c src\agent\agent.h src\agent\api_openai.h src\agent\jsonutil.h src\agent\message.h src\agent\tools.h src\core\base.h src\core\config.h src\core\log.h src\core\path.h src\core\str.h src\core\utf8.h src\gui\resource.h src\net\body.h src\net\http.h src\net\net.h src\net\sse.h src\net\url.h src\trust_anchors.h third_party\cjson\cJSON.h
+	$(CC) $(PROJECT_CFLAGS) -fo=$@ src\trust_anchors.c
 
-build\ow\obj\cjson.obj: third_party\cjson\cJSON.c
-	$(CC) $(PROJECT_CFLAGS) -DCJSON_HIDE_SYMBOLS -fo=$@ $<
+build\ow\obj\cjson.obj: third_party\cjson\cJSON.c third_party\cjson\cJSON.h
+	$(CC) $(PROJECT_CFLAGS) -DCJSON_HIDE_SYMBOLS -fo=$@ third_party\cjson\cJSON.c
 
 build\ow\obj\bearssl\ccm.obj: third_party\bearssl\src\aead\ccm.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\aead\ccm.c
 
 build\ow\obj\bearssl\eax.obj: third_party\bearssl\src\aead\eax.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\aead\eax.c
 
 build\ow\obj\bearssl\gcm.obj: third_party\bearssl\src\aead\gcm.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\aead\gcm.c
 
 build\ow\obj\bearssl\ccopy.obj: third_party\bearssl\src\codec\ccopy.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\codec\ccopy.c
 
 build\ow\obj\bearssl\dec16be.obj: third_party\bearssl\src\codec\dec16be.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\codec\dec16be.c
 
 build\ow\obj\bearssl\dec16le.obj: third_party\bearssl\src\codec\dec16le.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\codec\dec16le.c
 
 build\ow\obj\bearssl\dec32be.obj: third_party\bearssl\src\codec\dec32be.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\codec\dec32be.c
 
 build\ow\obj\bearssl\dec32le.obj: third_party\bearssl\src\codec\dec32le.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\codec\dec32le.c
 
 build\ow\obj\bearssl\dec64be.obj: third_party\bearssl\src\codec\dec64be.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\codec\dec64be.c
 
 build\ow\obj\bearssl\dec64le.obj: third_party\bearssl\src\codec\dec64le.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\codec\dec64le.c
 
 build\ow\obj\bearssl\enc16be.obj: third_party\bearssl\src\codec\enc16be.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\codec\enc16be.c
 
 build\ow\obj\bearssl\enc16le.obj: third_party\bearssl\src\codec\enc16le.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\codec\enc16le.c
 
 build\ow\obj\bearssl\enc32be.obj: third_party\bearssl\src\codec\enc32be.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\codec\enc32be.c
 
 build\ow\obj\bearssl\enc32le.obj: third_party\bearssl\src\codec\enc32le.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\codec\enc32le.c
 
 build\ow\obj\bearssl\enc64be.obj: third_party\bearssl\src\codec\enc64be.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\codec\enc64be.c
 
 build\ow\obj\bearssl\enc64le.obj: third_party\bearssl\src\codec\enc64le.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\codec\enc64le.c
 
 build\ow\obj\bearssl\pemdec.obj: third_party\bearssl\src\codec\pemdec.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\codec\pemdec.c
 
 build\ow\obj\bearssl\pemenc.obj: third_party\bearssl\src\codec\pemenc.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\codec\pemenc.c
 
 build\ow\obj\bearssl\ec_all_m15.obj: third_party\bearssl\src\ec\ec_all_m15.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ec\ec_all_m15.c
 
 build\ow\obj\bearssl\ec_all_m31.obj: third_party\bearssl\src\ec\ec_all_m31.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ec\ec_all_m31.c
 
 build\ow\obj\bearssl\ec_c25519_i15.obj: third_party\bearssl\src\ec\ec_c25519_i15.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ec\ec_c25519_i15.c
 
 build\ow\obj\bearssl\ec_c25519_i31.obj: third_party\bearssl\src\ec\ec_c25519_i31.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ec\ec_c25519_i31.c
 
 build\ow\obj\bearssl\ec_c25519_m15.obj: third_party\bearssl\src\ec\ec_c25519_m15.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ec\ec_c25519_m15.c
 
 build\ow\obj\bearssl\ec_c25519_m31.obj: third_party\bearssl\src\ec\ec_c25519_m31.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ec\ec_c25519_m31.c
 
 build\ow\obj\bearssl\ec_curve25519.obj: third_party\bearssl\src\ec\ec_curve25519.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ec\ec_curve25519.c
 
 build\ow\obj\bearssl\ec_default.obj: third_party\bearssl\src\ec\ec_default.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ec\ec_default.c
 
 build\ow\obj\bearssl\ec_keygen.obj: third_party\bearssl\src\ec\ec_keygen.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ec\ec_keygen.c
 
 build\ow\obj\bearssl\ec_p256_m15.obj: third_party\bearssl\src\ec\ec_p256_m15.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ec\ec_p256_m15.c
 
 build\ow\obj\bearssl\ec_p256_m31.obj: third_party\bearssl\src\ec\ec_p256_m31.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ec\ec_p256_m31.c
 
 build\ow\obj\bearssl\ec_prime_i15.obj: third_party\bearssl\src\ec\ec_prime_i15.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ec\ec_prime_i15.c
 
 build\ow\obj\bearssl\ec_prime_i31.obj: third_party\bearssl\src\ec\ec_prime_i31.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ec\ec_prime_i31.c
 
 build\ow\obj\bearssl\ec_pubkey.obj: third_party\bearssl\src\ec\ec_pubkey.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ec\ec_pubkey.c
 
 build\ow\obj\bearssl\ec_secp256r1.obj: third_party\bearssl\src\ec\ec_secp256r1.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ec\ec_secp256r1.c
 
 build\ow\obj\bearssl\ec_secp384r1.obj: third_party\bearssl\src\ec\ec_secp384r1.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ec\ec_secp384r1.c
 
 build\ow\obj\bearssl\ec_secp521r1.obj: third_party\bearssl\src\ec\ec_secp521r1.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ec\ec_secp521r1.c
 
 build\ow\obj\bearssl\ecdsa_atr.obj: third_party\bearssl\src\ec\ecdsa_atr.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ec\ecdsa_atr.c
 
 build\ow\obj\bearssl\ecdsa_default_sign_asn1.obj: third_party\bearssl\src\ec\ecdsa_default_sign_asn1.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ec\ecdsa_default_sign_asn1.c
 
 build\ow\obj\bearssl\ecdsa_default_sign_raw.obj: third_party\bearssl\src\ec\ecdsa_default_sign_raw.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ec\ecdsa_default_sign_raw.c
 
 build\ow\obj\bearssl\ecdsa_default_vrfy_asn1.obj: third_party\bearssl\src\ec\ecdsa_default_vrfy_asn1.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ec\ecdsa_default_vrfy_asn1.c
 
 build\ow\obj\bearssl\ecdsa_default_vrfy_raw.obj: third_party\bearssl\src\ec\ecdsa_default_vrfy_raw.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ec\ecdsa_default_vrfy_raw.c
 
 build\ow\obj\bearssl\ecdsa_i15_bits.obj: third_party\bearssl\src\ec\ecdsa_i15_bits.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ec\ecdsa_i15_bits.c
 
 build\ow\obj\bearssl\ecdsa_i15_sign_asn1.obj: third_party\bearssl\src\ec\ecdsa_i15_sign_asn1.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ec\ecdsa_i15_sign_asn1.c
 
 build\ow\obj\bearssl\ecdsa_i15_sign_raw.obj: third_party\bearssl\src\ec\ecdsa_i15_sign_raw.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ec\ecdsa_i15_sign_raw.c
 
 build\ow\obj\bearssl\ecdsa_i15_vrfy_asn1.obj: third_party\bearssl\src\ec\ecdsa_i15_vrfy_asn1.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ec\ecdsa_i15_vrfy_asn1.c
 
 build\ow\obj\bearssl\ecdsa_i15_vrfy_raw.obj: third_party\bearssl\src\ec\ecdsa_i15_vrfy_raw.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ec\ecdsa_i15_vrfy_raw.c
 
 build\ow\obj\bearssl\ecdsa_i31_bits.obj: third_party\bearssl\src\ec\ecdsa_i31_bits.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ec\ecdsa_i31_bits.c
 
 build\ow\obj\bearssl\ecdsa_i31_sign_asn1.obj: third_party\bearssl\src\ec\ecdsa_i31_sign_asn1.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ec\ecdsa_i31_sign_asn1.c
 
 build\ow\obj\bearssl\ecdsa_i31_sign_raw.obj: third_party\bearssl\src\ec\ecdsa_i31_sign_raw.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ec\ecdsa_i31_sign_raw.c
 
 build\ow\obj\bearssl\ecdsa_i31_vrfy_asn1.obj: third_party\bearssl\src\ec\ecdsa_i31_vrfy_asn1.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ec\ecdsa_i31_vrfy_asn1.c
 
 build\ow\obj\bearssl\ecdsa_i31_vrfy_raw.obj: third_party\bearssl\src\ec\ecdsa_i31_vrfy_raw.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ec\ecdsa_i31_vrfy_raw.c
 
 build\ow\obj\bearssl\ecdsa_rta.obj: third_party\bearssl\src\ec\ecdsa_rta.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ec\ecdsa_rta.c
 
 build\ow\obj\bearssl\dig_oid.obj: third_party\bearssl\src\hash\dig_oid.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\hash\dig_oid.c
 
 build\ow\obj\bearssl\dig_size.obj: third_party\bearssl\src\hash\dig_size.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\hash\dig_size.c
 
 build\ow\obj\bearssl\ghash_ctmul.obj: third_party\bearssl\src\hash\ghash_ctmul.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\hash\ghash_ctmul.c
 
 build\ow\obj\bearssl\ghash_ctmul32.obj: third_party\bearssl\src\hash\ghash_ctmul32.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\hash\ghash_ctmul32.c
 
 build\ow\obj\bearssl\ghash_ctmul64.obj: third_party\bearssl\src\hash\ghash_ctmul64.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\hash\ghash_ctmul64.c
 
 build\ow\obj\bearssl\ghash_pclmul.obj: third_party\bearssl\src\hash\ghash_pclmul.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\hash\ghash_pclmul.c
 
 build\ow\obj\bearssl\ghash_pwr8.obj: third_party\bearssl\src\hash\ghash_pwr8.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\hash\ghash_pwr8.c
 
 build\ow\obj\bearssl\md5.obj: third_party\bearssl\src\hash\md5.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\hash\md5.c
 
 build\ow\obj\bearssl\md5sha1.obj: third_party\bearssl\src\hash\md5sha1.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\hash\md5sha1.c
 
 build\ow\obj\bearssl\mgf1.obj: third_party\bearssl\src\hash\mgf1.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\hash\mgf1.c
 
 build\ow\obj\bearssl\multihash.obj: third_party\bearssl\src\hash\multihash.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\hash\multihash.c
 
 build\ow\obj\bearssl\sha1.obj: third_party\bearssl\src\hash\sha1.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\hash\sha1.c
 
 build\ow\obj\bearssl\sha2big.obj: third_party\bearssl\src\hash\sha2big.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\hash\sha2big.c
 
 build\ow\obj\bearssl\sha2small.obj: third_party\bearssl\src\hash\sha2small.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\hash\sha2small.c
 
 build\ow\obj\bearssl\i15_add.obj: third_party\bearssl\src\int\i15_add.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i15_add.c
 
 build\ow\obj\bearssl\i15_bitlen.obj: third_party\bearssl\src\int\i15_bitlen.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i15_bitlen.c
 
 build\ow\obj\bearssl\i15_decmod.obj: third_party\bearssl\src\int\i15_decmod.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i15_decmod.c
 
 build\ow\obj\bearssl\i15_decode.obj: third_party\bearssl\src\int\i15_decode.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i15_decode.c
 
 build\ow\obj\bearssl\i15_decred.obj: third_party\bearssl\src\int\i15_decred.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i15_decred.c
 
 build\ow\obj\bearssl\i15_encode.obj: third_party\bearssl\src\int\i15_encode.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i15_encode.c
 
 build\ow\obj\bearssl\i15_fmont.obj: third_party\bearssl\src\int\i15_fmont.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i15_fmont.c
 
 build\ow\obj\bearssl\i15_iszero.obj: third_party\bearssl\src\int\i15_iszero.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i15_iszero.c
 
 build\ow\obj\bearssl\i15_moddiv.obj: third_party\bearssl\src\int\i15_moddiv.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i15_moddiv.c
 
 build\ow\obj\bearssl\i15_modpow.obj: third_party\bearssl\src\int\i15_modpow.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i15_modpow.c
 
 build\ow\obj\bearssl\i15_modpow2.obj: third_party\bearssl\src\int\i15_modpow2.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i15_modpow2.c
 
 build\ow\obj\bearssl\i15_montmul.obj: third_party\bearssl\src\int\i15_montmul.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i15_montmul.c
 
 build\ow\obj\bearssl\i15_mulacc.obj: third_party\bearssl\src\int\i15_mulacc.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i15_mulacc.c
 
 build\ow\obj\bearssl\i15_muladd.obj: third_party\bearssl\src\int\i15_muladd.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i15_muladd.c
 
 build\ow\obj\bearssl\i15_ninv15.obj: third_party\bearssl\src\int\i15_ninv15.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i15_ninv15.c
 
 build\ow\obj\bearssl\i15_reduce.obj: third_party\bearssl\src\int\i15_reduce.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i15_reduce.c
 
 build\ow\obj\bearssl\i15_rshift.obj: third_party\bearssl\src\int\i15_rshift.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i15_rshift.c
 
 build\ow\obj\bearssl\i15_sub.obj: third_party\bearssl\src\int\i15_sub.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i15_sub.c
 
 build\ow\obj\bearssl\i15_tmont.obj: third_party\bearssl\src\int\i15_tmont.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i15_tmont.c
 
 build\ow\obj\bearssl\i31_add.obj: third_party\bearssl\src\int\i31_add.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i31_add.c
 
 build\ow\obj\bearssl\i31_bitlen.obj: third_party\bearssl\src\int\i31_bitlen.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i31_bitlen.c
 
 build\ow\obj\bearssl\i31_decmod.obj: third_party\bearssl\src\int\i31_decmod.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i31_decmod.c
 
 build\ow\obj\bearssl\i31_decode.obj: third_party\bearssl\src\int\i31_decode.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i31_decode.c
 
 build\ow\obj\bearssl\i31_decred.obj: third_party\bearssl\src\int\i31_decred.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i31_decred.c
 
 build\ow\obj\bearssl\i31_encode.obj: third_party\bearssl\src\int\i31_encode.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i31_encode.c
 
 build\ow\obj\bearssl\i31_fmont.obj: third_party\bearssl\src\int\i31_fmont.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i31_fmont.c
 
 build\ow\obj\bearssl\i31_iszero.obj: third_party\bearssl\src\int\i31_iszero.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i31_iszero.c
 
 build\ow\obj\bearssl\i31_moddiv.obj: third_party\bearssl\src\int\i31_moddiv.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i31_moddiv.c
 
 build\ow\obj\bearssl\i31_modpow.obj: third_party\bearssl\src\int\i31_modpow.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i31_modpow.c
 
 build\ow\obj\bearssl\i31_modpow2.obj: third_party\bearssl\src\int\i31_modpow2.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i31_modpow2.c
 
 build\ow\obj\bearssl\i31_montmul.obj: third_party\bearssl\src\int\i31_montmul.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i31_montmul.c
 
 build\ow\obj\bearssl\i31_mulacc.obj: third_party\bearssl\src\int\i31_mulacc.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i31_mulacc.c
 
 build\ow\obj\bearssl\i31_muladd.obj: third_party\bearssl\src\int\i31_muladd.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i31_muladd.c
 
 build\ow\obj\bearssl\i31_ninv31.obj: third_party\bearssl\src\int\i31_ninv31.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i31_ninv31.c
 
 build\ow\obj\bearssl\i31_reduce.obj: third_party\bearssl\src\int\i31_reduce.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i31_reduce.c
 
 build\ow\obj\bearssl\i31_rshift.obj: third_party\bearssl\src\int\i31_rshift.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i31_rshift.c
 
 build\ow\obj\bearssl\i31_sub.obj: third_party\bearssl\src\int\i31_sub.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i31_sub.c
 
 build\ow\obj\bearssl\i31_tmont.obj: third_party\bearssl\src\int\i31_tmont.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i31_tmont.c
 
 build\ow\obj\bearssl\i32_add.obj: third_party\bearssl\src\int\i32_add.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i32_add.c
 
 build\ow\obj\bearssl\i32_bitlen.obj: third_party\bearssl\src\int\i32_bitlen.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i32_bitlen.c
 
 build\ow\obj\bearssl\i32_decmod.obj: third_party\bearssl\src\int\i32_decmod.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i32_decmod.c
 
 build\ow\obj\bearssl\i32_decode.obj: third_party\bearssl\src\int\i32_decode.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i32_decode.c
 
 build\ow\obj\bearssl\i32_decred.obj: third_party\bearssl\src\int\i32_decred.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i32_decred.c
 
 build\ow\obj\bearssl\i32_div32.obj: third_party\bearssl\src\int\i32_div32.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i32_div32.c
 
 build\ow\obj\bearssl\i32_encode.obj: third_party\bearssl\src\int\i32_encode.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i32_encode.c
 
 build\ow\obj\bearssl\i32_fmont.obj: third_party\bearssl\src\int\i32_fmont.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i32_fmont.c
 
 build\ow\obj\bearssl\i32_iszero.obj: third_party\bearssl\src\int\i32_iszero.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i32_iszero.c
 
 build\ow\obj\bearssl\i32_modpow.obj: third_party\bearssl\src\int\i32_modpow.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i32_modpow.c
 
 build\ow\obj\bearssl\i32_montmul.obj: third_party\bearssl\src\int\i32_montmul.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i32_montmul.c
 
 build\ow\obj\bearssl\i32_mulacc.obj: third_party\bearssl\src\int\i32_mulacc.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i32_mulacc.c
 
 build\ow\obj\bearssl\i32_muladd.obj: third_party\bearssl\src\int\i32_muladd.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i32_muladd.c
 
 build\ow\obj\bearssl\i32_ninv32.obj: third_party\bearssl\src\int\i32_ninv32.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i32_ninv32.c
 
 build\ow\obj\bearssl\i32_reduce.obj: third_party\bearssl\src\int\i32_reduce.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i32_reduce.c
 
 build\ow\obj\bearssl\i32_sub.obj: third_party\bearssl\src\int\i32_sub.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i32_sub.c
 
 build\ow\obj\bearssl\i32_tmont.obj: third_party\bearssl\src\int\i32_tmont.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i32_tmont.c
 
 build\ow\obj\bearssl\i62_modpow2.obj: third_party\bearssl\src\int\i62_modpow2.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\int\i62_modpow2.c
 
 build\ow\obj\bearssl\hkdf.obj: third_party\bearssl\src\kdf\hkdf.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\kdf\hkdf.c
 
 build\ow\obj\bearssl\hmac.obj: third_party\bearssl\src\mac\hmac.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\mac\hmac.c
 
 build\ow\obj\bearssl\hmac_ct.obj: third_party\bearssl\src\mac\hmac_ct.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\mac\hmac_ct.c
 
 build\ow\obj\bearssl\aesctr_drbg.obj: third_party\bearssl\src\rand\aesctr_drbg.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rand\aesctr_drbg.c
 
 build\ow\obj\bearssl\hmac_drbg.obj: third_party\bearssl\src\rand\hmac_drbg.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rand\hmac_drbg.c
 
 build\ow\obj\bearssl\sysrng.obj: third_party\bearssl\src\rand\sysrng.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rand\sysrng.c
 
 build\ow\obj\bearssl\rsa_default_keygen.obj: third_party\bearssl\src\rsa\rsa_default_keygen.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_default_keygen.c
 
 build\ow\obj\bearssl\rsa_default_modulus.obj: third_party\bearssl\src\rsa\rsa_default_modulus.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_default_modulus.c
 
 build\ow\obj\bearssl\rsa_default_oaep_decrypt.obj: third_party\bearssl\src\rsa\rsa_default_oaep_decrypt.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_default_oaep_decrypt.c
 
 build\ow\obj\bearssl\rsa_default_oaep_encrypt.obj: third_party\bearssl\src\rsa\rsa_default_oaep_encrypt.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_default_oaep_encrypt.c
 
 build\ow\obj\bearssl\rsa_default_pkcs1_sign.obj: third_party\bearssl\src\rsa\rsa_default_pkcs1_sign.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_default_pkcs1_sign.c
 
 build\ow\obj\bearssl\rsa_default_pkcs1_vrfy.obj: third_party\bearssl\src\rsa\rsa_default_pkcs1_vrfy.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_default_pkcs1_vrfy.c
 
 build\ow\obj\bearssl\rsa_default_priv.obj: third_party\bearssl\src\rsa\rsa_default_priv.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_default_priv.c
 
 build\ow\obj\bearssl\rsa_default_privexp.obj: third_party\bearssl\src\rsa\rsa_default_privexp.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_default_privexp.c
 
 build\ow\obj\bearssl\rsa_default_pub.obj: third_party\bearssl\src\rsa\rsa_default_pub.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_default_pub.c
 
 build\ow\obj\bearssl\rsa_default_pubexp.obj: third_party\bearssl\src\rsa\rsa_default_pubexp.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_default_pubexp.c
 
 build\ow\obj\bearssl\rsa_i15_keygen.obj: third_party\bearssl\src\rsa\rsa_i15_keygen.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_i15_keygen.c
 
 build\ow\obj\bearssl\rsa_i15_modulus.obj: third_party\bearssl\src\rsa\rsa_i15_modulus.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_i15_modulus.c
 
 build\ow\obj\bearssl\rsa_i15_oaep_decrypt.obj: third_party\bearssl\src\rsa\rsa_i15_oaep_decrypt.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_i15_oaep_decrypt.c
 
 build\ow\obj\bearssl\rsa_i15_oaep_encrypt.obj: third_party\bearssl\src\rsa\rsa_i15_oaep_encrypt.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_i15_oaep_encrypt.c
 
 build\ow\obj\bearssl\rsa_i15_pkcs1_sign.obj: third_party\bearssl\src\rsa\rsa_i15_pkcs1_sign.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_i15_pkcs1_sign.c
 
 build\ow\obj\bearssl\rsa_i15_pkcs1_vrfy.obj: third_party\bearssl\src\rsa\rsa_i15_pkcs1_vrfy.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_i15_pkcs1_vrfy.c
 
 build\ow\obj\bearssl\rsa_i15_priv.obj: third_party\bearssl\src\rsa\rsa_i15_priv.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_i15_priv.c
 
 build\ow\obj\bearssl\rsa_i15_privexp.obj: third_party\bearssl\src\rsa\rsa_i15_privexp.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_i15_privexp.c
 
 build\ow\obj\bearssl\rsa_i15_pub.obj: third_party\bearssl\src\rsa\rsa_i15_pub.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_i15_pub.c
 
 build\ow\obj\bearssl\rsa_i15_pubexp.obj: third_party\bearssl\src\rsa\rsa_i15_pubexp.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_i15_pubexp.c
 
 build\ow\obj\bearssl\rsa_i31_keygen.obj: third_party\bearssl\src\rsa\rsa_i31_keygen.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_i31_keygen.c
 
 build\ow\obj\bearssl\rsa_i31_keygen_inner.obj: third_party\bearssl\src\rsa\rsa_i31_keygen_inner.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_i31_keygen_inner.c
 
 build\ow\obj\bearssl\rsa_i31_modulus.obj: third_party\bearssl\src\rsa\rsa_i31_modulus.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_i31_modulus.c
 
 build\ow\obj\bearssl\rsa_i31_oaep_decrypt.obj: third_party\bearssl\src\rsa\rsa_i31_oaep_decrypt.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_i31_oaep_decrypt.c
 
 build\ow\obj\bearssl\rsa_i31_oaep_encrypt.obj: third_party\bearssl\src\rsa\rsa_i31_oaep_encrypt.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_i31_oaep_encrypt.c
 
 build\ow\obj\bearssl\rsa_i31_pkcs1_sign.obj: third_party\bearssl\src\rsa\rsa_i31_pkcs1_sign.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_i31_pkcs1_sign.c
 
 build\ow\obj\bearssl\rsa_i31_pkcs1_vrfy.obj: third_party\bearssl\src\rsa\rsa_i31_pkcs1_vrfy.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_i31_pkcs1_vrfy.c
 
 build\ow\obj\bearssl\rsa_i31_priv.obj: third_party\bearssl\src\rsa\rsa_i31_priv.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_i31_priv.c
 
 build\ow\obj\bearssl\rsa_i31_privexp.obj: third_party\bearssl\src\rsa\rsa_i31_privexp.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_i31_privexp.c
 
 build\ow\obj\bearssl\rsa_i31_pub.obj: third_party\bearssl\src\rsa\rsa_i31_pub.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_i31_pub.c
 
 build\ow\obj\bearssl\rsa_i31_pubexp.obj: third_party\bearssl\src\rsa\rsa_i31_pubexp.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_i31_pubexp.c
 
 build\ow\obj\bearssl\rsa_i32_oaep_decrypt.obj: third_party\bearssl\src\rsa\rsa_i32_oaep_decrypt.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_i32_oaep_decrypt.c
 
 build\ow\obj\bearssl\rsa_i32_oaep_encrypt.obj: third_party\bearssl\src\rsa\rsa_i32_oaep_encrypt.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_i32_oaep_encrypt.c
 
 build\ow\obj\bearssl\rsa_i32_pkcs1_sign.obj: third_party\bearssl\src\rsa\rsa_i32_pkcs1_sign.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_i32_pkcs1_sign.c
 
 build\ow\obj\bearssl\rsa_i32_pkcs1_vrfy.obj: third_party\bearssl\src\rsa\rsa_i32_pkcs1_vrfy.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_i32_pkcs1_vrfy.c
 
 build\ow\obj\bearssl\rsa_i32_priv.obj: third_party\bearssl\src\rsa\rsa_i32_priv.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_i32_priv.c
 
 build\ow\obj\bearssl\rsa_i32_pub.obj: third_party\bearssl\src\rsa\rsa_i32_pub.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_i32_pub.c
 
 build\ow\obj\bearssl\rsa_i62_keygen.obj: third_party\bearssl\src\rsa\rsa_i62_keygen.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_i62_keygen.c
 
 build\ow\obj\bearssl\rsa_i62_oaep_decrypt.obj: third_party\bearssl\src\rsa\rsa_i62_oaep_decrypt.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_i62_oaep_decrypt.c
 
 build\ow\obj\bearssl\rsa_i62_oaep_encrypt.obj: third_party\bearssl\src\rsa\rsa_i62_oaep_encrypt.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_i62_oaep_encrypt.c
 
 build\ow\obj\bearssl\rsa_i62_pkcs1_sign.obj: third_party\bearssl\src\rsa\rsa_i62_pkcs1_sign.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_i62_pkcs1_sign.c
 
 build\ow\obj\bearssl\rsa_i62_pkcs1_vrfy.obj: third_party\bearssl\src\rsa\rsa_i62_pkcs1_vrfy.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_i62_pkcs1_vrfy.c
 
 build\ow\obj\bearssl\rsa_i62_priv.obj: third_party\bearssl\src\rsa\rsa_i62_priv.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_i62_priv.c
 
 build\ow\obj\bearssl\rsa_i62_pub.obj: third_party\bearssl\src\rsa\rsa_i62_pub.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_i62_pub.c
 
 build\ow\obj\bearssl\rsa_oaep_pad.obj: third_party\bearssl\src\rsa\rsa_oaep_pad.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_oaep_pad.c
 
 build\ow\obj\bearssl\rsa_oaep_unpad.obj: third_party\bearssl\src\rsa\rsa_oaep_unpad.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_oaep_unpad.c
 
 build\ow\obj\bearssl\rsa_pkcs1_sig_pad.obj: third_party\bearssl\src\rsa\rsa_pkcs1_sig_pad.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_pkcs1_sig_pad.c
 
 build\ow\obj\bearssl\rsa_pkcs1_sig_unpad.obj: third_party\bearssl\src\rsa\rsa_pkcs1_sig_unpad.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_pkcs1_sig_unpad.c
 
 build\ow\obj\bearssl\rsa_ssl_decrypt.obj: third_party\bearssl\src\rsa\rsa_ssl_decrypt.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\rsa\rsa_ssl_decrypt.c
 
 build\ow\obj\bearssl\settings.obj: third_party\bearssl\src\settings.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\settings.c
 
 build\ow\obj\bearssl\prf.obj: third_party\bearssl\src\ssl\prf.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ssl\prf.c
 
 build\ow\obj\bearssl\prf_md5sha1.obj: third_party\bearssl\src\ssl\prf_md5sha1.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ssl\prf_md5sha1.c
 
 build\ow\obj\bearssl\prf_sha256.obj: third_party\bearssl\src\ssl\prf_sha256.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ssl\prf_sha256.c
 
 build\ow\obj\bearssl\prf_sha384.obj: third_party\bearssl\src\ssl\prf_sha384.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ssl\prf_sha384.c
 
 build\ow\obj\bearssl\ssl_ccert_single_ec.obj: third_party\bearssl\src\ssl\ssl_ccert_single_ec.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ssl\ssl_ccert_single_ec.c
 
 build\ow\obj\bearssl\ssl_ccert_single_rsa.obj: third_party\bearssl\src\ssl\ssl_ccert_single_rsa.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ssl\ssl_ccert_single_rsa.c
 
 build\ow\obj\bearssl\ssl_client.obj: third_party\bearssl\src\ssl\ssl_client.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ssl\ssl_client.c
 
 build\ow\obj\bearssl\ssl_client_default_rsapub.obj: third_party\bearssl\src\ssl\ssl_client_default_rsapub.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ssl\ssl_client_default_rsapub.c
 
 build\ow\obj\bearssl\ssl_client_full.obj: third_party\bearssl\src\ssl\ssl_client_full.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ssl\ssl_client_full.c
 
 build\ow\obj\bearssl\ssl_engine.obj: third_party\bearssl\src\ssl\ssl_engine.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ssl\ssl_engine.c
 
 build\ow\obj\bearssl\ssl_engine_default_aescbc.obj: third_party\bearssl\src\ssl\ssl_engine_default_aescbc.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ssl\ssl_engine_default_aescbc.c
 
 build\ow\obj\bearssl\ssl_engine_default_aesccm.obj: third_party\bearssl\src\ssl\ssl_engine_default_aesccm.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ssl\ssl_engine_default_aesccm.c
 
 build\ow\obj\bearssl\ssl_engine_default_aesgcm.obj: third_party\bearssl\src\ssl\ssl_engine_default_aesgcm.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ssl\ssl_engine_default_aesgcm.c
 
 build\ow\obj\bearssl\ssl_engine_default_chapol.obj: third_party\bearssl\src\ssl\ssl_engine_default_chapol.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ssl\ssl_engine_default_chapol.c
 
 build\ow\obj\bearssl\ssl_engine_default_descbc.obj: third_party\bearssl\src\ssl\ssl_engine_default_descbc.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ssl\ssl_engine_default_descbc.c
 
 build\ow\obj\bearssl\ssl_engine_default_ec.obj: third_party\bearssl\src\ssl\ssl_engine_default_ec.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ssl\ssl_engine_default_ec.c
 
 build\ow\obj\bearssl\ssl_engine_default_ecdsa.obj: third_party\bearssl\src\ssl\ssl_engine_default_ecdsa.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ssl\ssl_engine_default_ecdsa.c
 
 build\ow\obj\bearssl\ssl_engine_default_rsavrfy.obj: third_party\bearssl\src\ssl\ssl_engine_default_rsavrfy.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ssl\ssl_engine_default_rsavrfy.c
 
 build\ow\obj\bearssl\ssl_hashes.obj: third_party\bearssl\src\ssl\ssl_hashes.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ssl\ssl_hashes.c
 
 build\ow\obj\bearssl\ssl_hs_client.obj: third_party\bearssl\src\ssl\ssl_hs_client.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ssl\ssl_hs_client.c
 
 build\ow\obj\bearssl\ssl_hs_server.obj: third_party\bearssl\src\ssl\ssl_hs_server.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ssl\ssl_hs_server.c
 
 build\ow\obj\bearssl\ssl_io.obj: third_party\bearssl\src\ssl\ssl_io.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ssl\ssl_io.c
 
 build\ow\obj\bearssl\ssl_keyexport.obj: third_party\bearssl\src\ssl\ssl_keyexport.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ssl\ssl_keyexport.c
 
 build\ow\obj\bearssl\ssl_lru.obj: third_party\bearssl\src\ssl\ssl_lru.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ssl\ssl_lru.c
 
 build\ow\obj\bearssl\ssl_rec_cbc.obj: third_party\bearssl\src\ssl\ssl_rec_cbc.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ssl\ssl_rec_cbc.c
 
 build\ow\obj\bearssl\ssl_rec_ccm.obj: third_party\bearssl\src\ssl\ssl_rec_ccm.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ssl\ssl_rec_ccm.c
 
 build\ow\obj\bearssl\ssl_rec_chapol.obj: third_party\bearssl\src\ssl\ssl_rec_chapol.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ssl\ssl_rec_chapol.c
 
 build\ow\obj\bearssl\ssl_rec_gcm.obj: third_party\bearssl\src\ssl\ssl_rec_gcm.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ssl\ssl_rec_gcm.c
 
 build\ow\obj\bearssl\ssl_scert_single_ec.obj: third_party\bearssl\src\ssl\ssl_scert_single_ec.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ssl\ssl_scert_single_ec.c
 
 build\ow\obj\bearssl\ssl_scert_single_rsa.obj: third_party\bearssl\src\ssl\ssl_scert_single_rsa.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ssl\ssl_scert_single_rsa.c
 
 build\ow\obj\bearssl\ssl_server.obj: third_party\bearssl\src\ssl\ssl_server.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ssl\ssl_server.c
 
 build\ow\obj\bearssl\ssl_server_full_ec.obj: third_party\bearssl\src\ssl\ssl_server_full_ec.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ssl\ssl_server_full_ec.c
 
 build\ow\obj\bearssl\ssl_server_full_rsa.obj: third_party\bearssl\src\ssl\ssl_server_full_rsa.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ssl\ssl_server_full_rsa.c
 
 build\ow\obj\bearssl\ssl_server_mine2c.obj: third_party\bearssl\src\ssl\ssl_server_mine2c.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ssl\ssl_server_mine2c.c
 
 build\ow\obj\bearssl\ssl_server_mine2g.obj: third_party\bearssl\src\ssl\ssl_server_mine2g.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ssl\ssl_server_mine2g.c
 
 build\ow\obj\bearssl\ssl_server_minf2c.obj: third_party\bearssl\src\ssl\ssl_server_minf2c.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ssl\ssl_server_minf2c.c
 
 build\ow\obj\bearssl\ssl_server_minf2g.obj: third_party\bearssl\src\ssl\ssl_server_minf2g.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ssl\ssl_server_minf2g.c
 
 build\ow\obj\bearssl\ssl_server_minr2g.obj: third_party\bearssl\src\ssl\ssl_server_minr2g.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ssl\ssl_server_minr2g.c
 
 build\ow\obj\bearssl\ssl_server_minu2g.obj: third_party\bearssl\src\ssl\ssl_server_minu2g.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ssl\ssl_server_minu2g.c
 
 build\ow\obj\bearssl\ssl_server_minv2g.obj: third_party\bearssl\src\ssl\ssl_server_minv2g.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\ssl\ssl_server_minv2g.c
 
 build\ow\obj\bearssl\aes_big_cbcdec.obj: third_party\bearssl\src\symcipher\aes_big_cbcdec.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\aes_big_cbcdec.c
 
 build\ow\obj\bearssl\aes_big_cbcenc.obj: third_party\bearssl\src\symcipher\aes_big_cbcenc.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\aes_big_cbcenc.c
 
 build\ow\obj\bearssl\aes_big_ctr.obj: third_party\bearssl\src\symcipher\aes_big_ctr.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\aes_big_ctr.c
 
 build\ow\obj\bearssl\aes_big_ctrcbc.obj: third_party\bearssl\src\symcipher\aes_big_ctrcbc.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\aes_big_ctrcbc.c
 
 build\ow\obj\bearssl\aes_big_dec.obj: third_party\bearssl\src\symcipher\aes_big_dec.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\aes_big_dec.c
 
 build\ow\obj\bearssl\aes_big_enc.obj: third_party\bearssl\src\symcipher\aes_big_enc.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\aes_big_enc.c
 
 build\ow\obj\bearssl\aes_common.obj: third_party\bearssl\src\symcipher\aes_common.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\aes_common.c
 
 build\ow\obj\bearssl\aes_ct.obj: third_party\bearssl\src\symcipher\aes_ct.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\aes_ct.c
 
 build\ow\obj\bearssl\aes_ct_cbcdec.obj: third_party\bearssl\src\symcipher\aes_ct_cbcdec.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\aes_ct_cbcdec.c
 
 build\ow\obj\bearssl\aes_ct_cbcenc.obj: third_party\bearssl\src\symcipher\aes_ct_cbcenc.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\aes_ct_cbcenc.c
 
 build\ow\obj\bearssl\aes_ct_ctr.obj: third_party\bearssl\src\symcipher\aes_ct_ctr.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\aes_ct_ctr.c
 
 build\ow\obj\bearssl\aes_ct_ctrcbc.obj: third_party\bearssl\src\symcipher\aes_ct_ctrcbc.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\aes_ct_ctrcbc.c
 
 build\ow\obj\bearssl\aes_ct_dec.obj: third_party\bearssl\src\symcipher\aes_ct_dec.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\aes_ct_dec.c
 
 build\ow\obj\bearssl\aes_ct_enc.obj: third_party\bearssl\src\symcipher\aes_ct_enc.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\aes_ct_enc.c
 
 build\ow\obj\bearssl\aes_ct64.obj: third_party\bearssl\src\symcipher\aes_ct64.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\aes_ct64.c
 
 build\ow\obj\bearssl\aes_ct64_cbcdec.obj: third_party\bearssl\src\symcipher\aes_ct64_cbcdec.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\aes_ct64_cbcdec.c
 
 build\ow\obj\bearssl\aes_ct64_cbcenc.obj: third_party\bearssl\src\symcipher\aes_ct64_cbcenc.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\aes_ct64_cbcenc.c
 
 build\ow\obj\bearssl\aes_ct64_ctr.obj: third_party\bearssl\src\symcipher\aes_ct64_ctr.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\aes_ct64_ctr.c
 
 build\ow\obj\bearssl\aes_ct64_ctrcbc.obj: third_party\bearssl\src\symcipher\aes_ct64_ctrcbc.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\aes_ct64_ctrcbc.c
 
 build\ow\obj\bearssl\aes_ct64_dec.obj: third_party\bearssl\src\symcipher\aes_ct64_dec.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\aes_ct64_dec.c
 
 build\ow\obj\bearssl\aes_ct64_enc.obj: third_party\bearssl\src\symcipher\aes_ct64_enc.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\aes_ct64_enc.c
 
 build\ow\obj\bearssl\aes_pwr8.obj: third_party\bearssl\src\symcipher\aes_pwr8.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\aes_pwr8.c
 
 build\ow\obj\bearssl\aes_pwr8_cbcdec.obj: third_party\bearssl\src\symcipher\aes_pwr8_cbcdec.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\aes_pwr8_cbcdec.c
 
 build\ow\obj\bearssl\aes_pwr8_cbcenc.obj: third_party\bearssl\src\symcipher\aes_pwr8_cbcenc.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\aes_pwr8_cbcenc.c
 
 build\ow\obj\bearssl\aes_pwr8_ctr.obj: third_party\bearssl\src\symcipher\aes_pwr8_ctr.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\aes_pwr8_ctr.c
 
 build\ow\obj\bearssl\aes_pwr8_ctrcbc.obj: third_party\bearssl\src\symcipher\aes_pwr8_ctrcbc.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\aes_pwr8_ctrcbc.c
 
 build\ow\obj\bearssl\aes_small_cbcdec.obj: third_party\bearssl\src\symcipher\aes_small_cbcdec.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\aes_small_cbcdec.c
 
 build\ow\obj\bearssl\aes_small_cbcenc.obj: third_party\bearssl\src\symcipher\aes_small_cbcenc.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\aes_small_cbcenc.c
 
 build\ow\obj\bearssl\aes_small_ctr.obj: third_party\bearssl\src\symcipher\aes_small_ctr.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\aes_small_ctr.c
 
 build\ow\obj\bearssl\aes_small_ctrcbc.obj: third_party\bearssl\src\symcipher\aes_small_ctrcbc.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\aes_small_ctrcbc.c
 
 build\ow\obj\bearssl\aes_small_dec.obj: third_party\bearssl\src\symcipher\aes_small_dec.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\aes_small_dec.c
 
 build\ow\obj\bearssl\aes_small_enc.obj: third_party\bearssl\src\symcipher\aes_small_enc.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\aes_small_enc.c
 
 build\ow\obj\bearssl\aes_x86ni.obj: third_party\bearssl\src\symcipher\aes_x86ni.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\aes_x86ni.c
 
 build\ow\obj\bearssl\aes_x86ni_cbcdec.obj: third_party\bearssl\src\symcipher\aes_x86ni_cbcdec.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\aes_x86ni_cbcdec.c
 
 build\ow\obj\bearssl\aes_x86ni_cbcenc.obj: third_party\bearssl\src\symcipher\aes_x86ni_cbcenc.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\aes_x86ni_cbcenc.c
 
 build\ow\obj\bearssl\aes_x86ni_ctr.obj: third_party\bearssl\src\symcipher\aes_x86ni_ctr.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\aes_x86ni_ctr.c
 
 build\ow\obj\bearssl\aes_x86ni_ctrcbc.obj: third_party\bearssl\src\symcipher\aes_x86ni_ctrcbc.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\aes_x86ni_ctrcbc.c
 
 build\ow\obj\bearssl\chacha20_ct.obj: third_party\bearssl\src\symcipher\chacha20_ct.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\chacha20_ct.c
 
 build\ow\obj\bearssl\chacha20_sse2.obj: third_party\bearssl\src\symcipher\chacha20_sse2.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\chacha20_sse2.c
 
 build\ow\obj\bearssl\des_ct.obj: third_party\bearssl\src\symcipher\des_ct.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\des_ct.c
 
 build\ow\obj\bearssl\des_ct_cbcdec.obj: third_party\bearssl\src\symcipher\des_ct_cbcdec.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\des_ct_cbcdec.c
 
 build\ow\obj\bearssl\des_ct_cbcenc.obj: third_party\bearssl\src\symcipher\des_ct_cbcenc.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\des_ct_cbcenc.c
 
 build\ow\obj\bearssl\des_support.obj: third_party\bearssl\src\symcipher\des_support.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\des_support.c
 
 build\ow\obj\bearssl\des_tab.obj: third_party\bearssl\src\symcipher\des_tab.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\des_tab.c
 
 build\ow\obj\bearssl\des_tab_cbcdec.obj: third_party\bearssl\src\symcipher\des_tab_cbcdec.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\des_tab_cbcdec.c
 
 build\ow\obj\bearssl\des_tab_cbcenc.obj: third_party\bearssl\src\symcipher\des_tab_cbcenc.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\des_tab_cbcenc.c
 
 build\ow\obj\bearssl\poly1305_ctmul.obj: third_party\bearssl\src\symcipher\poly1305_ctmul.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\poly1305_ctmul.c
 
 build\ow\obj\bearssl\poly1305_ctmul32.obj: third_party\bearssl\src\symcipher\poly1305_ctmul32.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\poly1305_ctmul32.c
 
 build\ow\obj\bearssl\poly1305_ctmulq.obj: third_party\bearssl\src\symcipher\poly1305_ctmulq.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\poly1305_ctmulq.c
 
 build\ow\obj\bearssl\poly1305_i15.obj: third_party\bearssl\src\symcipher\poly1305_i15.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\symcipher\poly1305_i15.c
 
 build\ow\obj\bearssl\asn1enc.obj: third_party\bearssl\src\x509\asn1enc.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\x509\asn1enc.c
 
 build\ow\obj\bearssl\encode_ec_pk8der.obj: third_party\bearssl\src\x509\encode_ec_pk8der.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\x509\encode_ec_pk8der.c
 
 build\ow\obj\bearssl\encode_ec_rawder.obj: third_party\bearssl\src\x509\encode_ec_rawder.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\x509\encode_ec_rawder.c
 
 build\ow\obj\bearssl\encode_rsa_pk8der.obj: third_party\bearssl\src\x509\encode_rsa_pk8der.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\x509\encode_rsa_pk8der.c
 
 build\ow\obj\bearssl\encode_rsa_rawder.obj: third_party\bearssl\src\x509\encode_rsa_rawder.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\x509\encode_rsa_rawder.c
 
 build\ow\obj\bearssl\skey_decoder.obj: third_party\bearssl\src\x509\skey_decoder.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\x509\skey_decoder.c
 
 build\ow\obj\bearssl\x509_decoder.obj: third_party\bearssl\src\x509\x509_decoder.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\x509\x509_decoder.c
 
 build\ow\obj\bearssl\x509_knownkey.obj: third_party\bearssl\src\x509\x509_knownkey.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\x509\x509_knownkey.c
 
 build\ow\obj\bearssl\x509_minimal.obj: third_party\bearssl\src\x509\x509_minimal.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\x509\x509_minimal.c
 
 build\ow\obj\bearssl\x509_minimal_full.obj: third_party\bearssl\src\x509\x509_minimal_full.c
-	$(CC) $(BEARSSL_CFLAGS) -fo=$@ $<
+	$(CC) $(BEARSSL_CFLAGS) -fo=$@ third_party\bearssl\src\x509\x509_minimal_full.c
 
 OBJS =
 OBJS += build\ow\obj\main.obj

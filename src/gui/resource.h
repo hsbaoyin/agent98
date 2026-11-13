@@ -31,6 +31,7 @@
 #define IDM_ABOUT          40006
 #define IDM_EXPORT         40007
 #define IDM_WORKSPACE      40008
+#define IDM_TOOLS_LIST     40009
 
 #define IDC_PROVIDER       2000
 #define IDC_API_BASE       2001

@@ -47,8 +47,8 @@ A chat client on a retro PC is a demo: you ask a question, it prints an answer,
 the answer is gone. The reason to put an agent on a 1998 machine is that the
 machine has files, and the model can reach them.
 
-- `read_file`, `write_file`, `list_dir`, `search_files` and `run_command` run
-  on the 9x box itself, not on a server somewhere else
+- 31 local tools (`read_file`, `write_file`, `grep`, `glob`, `apply_patch`,
+  `run_command`, ...) run on the 9x box itself, not on a server somewhere else
 - every path is resolved through `GetFullPathName` and checked against the
   workspace root, so `..` cannot walk out of the sandbox (`allow_outside=0`,
   the default)
@@ -59,6 +59,22 @@ machine has files, and the model can reach them.
 - `write_file` converts UTF-8 to the local ANSI code page and LF to DOS CRLF,
   so the files it produces open correctly in Win98 Notepad, `EDIT` and
   `COMMAND.COM`
+
+#### Tool set (31)
+
+The full reference is in [`TOOLS.md`](TOOLS.md). Read/search tools
+(`list_dir`, `read_file`, `head`, `tail`, `file_info`, `search_files`, `grep`,
+`glob`, `tree`, `wc`, `which`, `diff`, `checksum`) need no confirmation.
+Write tools (`write_file`, `append_file`, `edit`, `apply_patch`, `set_attr`,
+`todo_write`), delete/move tools (`delete_file`, `rmdir`, `rmdir_force`,
+`move_file`, `copy_file`), `run_command` and `env` ask first; the dialog shows
+the path, command line or variable name and marks HIGH RISK calls. `rmdir_force`
+always refuses the workspace root, even when the INI uses a relative path or a
+trailing separator.
+
+The console client adds `/tools`, `/stop`, `/export <file>` (CP_ACP + CRLF),
+`/workspace`, `/model` and `/config` (API key masked), plus `--ini`,
+`--workspace`, `--message`, `--yes` and `--no-shell`.
 
 ### Highlights
 
@@ -192,13 +208,9 @@ level=3
 ```
 
 `workspace` defaults to the `workspace` folder next to the executable. The log
-is written to `agent98.log` in the same directory. The example above keeps
-`allow_shell` off; if you turn it on, every `run_command` still stops for a
-confirmation dialog, and `write_file` always does.
-
-Note: the compiled-in default for `allow_shell` is 1, while `dist/SAMPLE.INI`
-ships with 0. Check the value in `agent98.ini` before handing the machine to a
-model you do not trust.
+is written to `agent98.log` in the same directory. Shell execution
+(`allow_shell`) is **off** by default; `write_file` and `run_command` always ask
+for confirmation even when it is on.
 
 To run against Ollama or another local model server instead of a cloud API:
 
@@ -265,6 +277,12 @@ asking it to change approach or finish. A fourth identical call stops the run
 with `loop guard stopped the run`, which protects the API quota. Every blocked
 call still gets a tool message, so the saved history stays protocol-valid.
 
+A second guard compares whole rounds, because a model that alternates between
+two calls (`read_file`, `list_dir`, `read_file`, ...) never repeats the same
+call twice in a row. If a round issues exactly the same set of calls as the
+previous round, the third such round is answered with an error and a fourth one
+stops the run. The two guards count independently.
+
 #### Network retries and text encoding
 
 `api_chat` retries transient failures up to twice (1 s, then 2 s backoff):
@@ -275,6 +293,11 @@ call still gets a tool message, so the saved history stays protocol-valid.
 Every retry is logged to `agent98.log` at WARN level. If part of a streamed
 answer has already been displayed, no retry happens, so text is never
 duplicated; Ctrl+C still cancels immediately during the backoff.
+
+`agent.request_timeout` is an **inactivity** timeout, not a total cap: it is
+renewed whenever data arrives, so one long streamed answer may legitimately
+take many minutes, while a connection that stops sending is abandoned after
+the configured number of seconds.
 
 `write_file` converts the model's UTF-8 content to the local ANSI code page
 (CP_ACP, GBK on a Simplified Chinese system) so Notepad, EDIT and
@@ -311,9 +334,13 @@ INI file.
 
 ```bat
 build\ow\tlsprobe.exe https://example.com/
+build\ow\tlsprobe.exe https://192.168.0.10:8443/ --insecure
 ```
 
-It prints the TLS version, cipher suite and HTTP status.
+It prints the TLS version, cipher suite and HTTP status. `--insecure` skips
+chain validation and the certificate-name match, so self-signed endpoints and
+IP addresses work; an **expired** certificate still fails, because BearSSL's
+minimal validator refuses to hand back a key for it.
 
 #### Mock server
 
@@ -408,6 +435,19 @@ gcc -std=c99 -O1 -w -Isrc -Isrc/core -Isrc/agent -Isrc/net ^
 
 In practice use the source list in `build/host/sources.rsp`.
 
+The expected output ends with `all tool tests passed`; the file also checks the
+`rmdir_force` workspace-root guard.
+
+#### Tool registry check
+
+`tests/smoke_tools.py` is a dependency-free structural check (Python 3) that all
+31 tools are registered in `src/agent/tools.c`, that the grep/glob/redaction
+helpers are present, and that the file's braces balance:
+
+```bat
+python tests\smoke_tools.py
+```
+
 ### Known limitations
 
 - Only OpenAI-compatible APIs are implemented; Anthropic / Gemini are not wired up
@@ -441,8 +481,8 @@ Agent98 把整件事放在 9x 机器上：DNS、TCP、带 ECDHE 和 AES-GCM 的 
 在复古机器上跑一个聊天客户端只是个演示：问一句，它打一段字，然后没了。
 在 1998 年的机器上跑 agent 的意义在于 —— 这台机器上有文件，而模型能碰到它们。
 
-- `read_file`、`write_file`、`list_dir`、`search_files`、`run_command` 都在
-  9x 本机执行，不是转发到某台服务器
+- 31 个本地工具（`read_file`、`write_file`、`grep`、`glob`、`apply_patch`、
+  `run_command` 等）都在 9x 本机执行，不是转发到某台服务器
 - 所有路径先经 `GetFullPathName` 规范化，再和 workspace 根目录比对，`..`
   走不出沙箱（`allow_outside=0`，默认值）
 - 写文件和执行命令会停下来先问，确认框里显示确切的路径或命令行
@@ -450,6 +490,20 @@ Agent98 把整件事放在 9x 机器上：DNS、TCP、带 ECDHE 和 AES-GCM 的 
   空转
 - `write_file` 会把 UTF-8 转成本地 ANSI 代码页、把 LF 转成 DOS CRLF，写出来
   的文件在 Win98 记事本、`EDIT` 和 `COMMAND.COM` 里都能正常打开
+
+#### 工具集（31 个）
+
+完整说明见 [`TOOLS.md`](TOOLS.md)。只读/搜索类（`list_dir`、`read_file`、
+`head`、`tail`、`file_info`、`search_files`、`grep`、`glob`、`tree`、`wc`、
+`which`、`diff`、`checksum`）无需确认；写入类（`write_file`、`append_file`、
+`edit`、`apply_patch`、`set_attr`、`todo_write`）、删除/移动类、`run_command`
+和 `env` 会先弹出确认，显示路径、命令行或变量名，高危调用标注 HIGH RISK。
+`rmdir_force` 始终拒绝删除 workspace 根目录，即使 INI 里写的是相对路径或
+带尾斜杠。
+
+命令行客户端新增 `/tools`、`/stop`、`/export <文件>`（CP_ACP + CRLF）、
+`/workspace`、`/model`、`/config`（API key 打码），以及 `--ini`、
+`--workspace`、`--message`、`--yes`、`--no-shell`。
 
 ### 简介
 
@@ -644,6 +698,11 @@ Ctrl+C）。GUI 和 INI 都接受 0 或 1~200。
 `loop guard stopped the run`，避免空转消耗 API 额度。被拦截的调用仍会写入
 一条 tool 消息，因此保存的会话历史始终符合协议格式。
 
+另有一层“整轮”保护：模型如果在两个调用之间来回切换（`read_file`、
+`list_dir`、`read_file`……），单看调用层面永远不重复。若某一轮发出的工具
+调用集合与上一轮完全相同，第 3 次这样的轮次会被拦截并返回错误，第 4 次
+终止本轮对话。两层保护的计数互不影响。
+
 #### 网络重试与文本编码
 
 `api_chat` 对瞬时故障自动重试，最多 2 次（1 秒、2 秒退避）：
@@ -653,6 +712,10 @@ Ctrl+C）。GUI 和 INI 都接受 0 或 1~200。
 
 每次重试都会写入 `agent98.log`（WARN 级别）。如果流式回复已经把部分文字
 显示出来，就不再重试，避免内容重复；退避期间按 Ctrl+C 也能立即取消。
+
+`agent.request_timeout` 是**无数据**超时，不是总时长上限：只要还有数据到达
+就会重新计时，因此一次很长的流式回答可以正常持续数分钟，而完全停止发送的
+连接会在设定的秒数后放弃。
 
 `write_file` 会把模型传入的 UTF-8 文本转换为系统当前代码页（CP_ACP，
 简体中文下为 GBK）再落盘，这样 Win98/Me 的记事本、EDIT 和 `COMMAND.COM`
@@ -686,9 +749,12 @@ system prompt 作为 `User instructions` 追加在后面：
 
 ```bat
 build\ow\tlsprobe.exe https://example.com/
+build\ow\tlsprobe.exe https://192.168.0.10:8443/ --insecure
 ```
 
-应输出 TLS 版本、密码套件和 HTTP 状态。
+应输出 TLS 版本、密码套件和 HTTP 状态。`--insecure` 会跳过证书链校验和
+主机名校验，可用于自签名站点或用 IP 直连；但**过期**证书仍然会失败，
+因为 BearSSL 的最小校验器不会为它交出公钥。
 
 #### mock 服务器
 
@@ -777,6 +843,19 @@ gcc -std=c99 -O1 -w -Isrc -Isrc/core -Isrc/agent -Isrc/net ^
 ```
 
 实际构建时使用 `build/host/sources.rsp` 中的源文件列表即可。
+
+输出以 `all tool tests passed` 结尾；该测试同时覆盖 `rmdir_force` 的
+workspace 根目录守卫。
+
+#### 工具注册检查
+
+`tests/smoke_tools.py` 是不依赖第三方库的静态检查（Python 3），确认
+`src/agent/tools.c` 里注册了全部 31 个工具、grep/glob/脱敏辅助函数存在、
+且大括号配对：
+
+```bat
+python tests\smoke_tools.py
+```
 
 ### 已知限制
 

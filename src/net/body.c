@@ -42,6 +42,15 @@ static int parse_chunk_size(Str *line, unsigned long *out)
     unsigned long v = 0;
     int digits = 0;
 
+    /* Skip leading whitespace */
+    while (i < line->len && (line->data[i] == ' ' || line->data[i] == '\t')) {
+        i++;
+    }
+    if (i < line->len && line->data[i] == '-') {
+        /* Disallow negative chunk sizes */
+        return -1;
+    }
+
     while (i < line->len) {
         char c = line->data[i];
         int d = -1;
@@ -55,7 +64,10 @@ static int parse_chunk_size(Str *line, unsigned long *out)
         if (d < 0) {
             break;
         }
-        if (v > 0x0FFFFFFFUL) {
+        /* Keep the running value inside 28 bits so the shift below cannot
+         * overflow on a 32-bit host (Win9x).  Chunk data itself is streamed
+         * to the sink, so this bounds the number, not the memory. */
+        if (v > 0x00FFFFFFUL) {
             return -1;
         }
         v = (v << 4) | (unsigned long)d;

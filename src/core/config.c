@@ -1,4 +1,5 @@
 #include "config.h"
+#include "log.h"
 
 #include <windows.h>
 
@@ -41,20 +42,22 @@ void config_defaults(Config *cfg, const char *exe_dir)
         return;
     }
     memset(cfg, 0, sizeof(*cfg));
-    strcpy(cfg->api_base, "https://api.openai.com/v1");
-    strcpy(cfg->model, "gpt-4o-mini");
-    strcpy(cfg->system_prompt, DEFAULT_SYSTEM_PROMPT);
+    strncpy(cfg->api_base, "https://api.openai.com/v1", sizeof(cfg->api_base) - 1);
+    strncpy(cfg->model, "gpt-4o-mini", sizeof(cfg->model) - 1);
+    strncpy(cfg->system_prompt, DEFAULT_SYSTEM_PROMPT, sizeof(cfg->system_prompt) - 1);
     if (exe_dir != NULL && exe_dir[0] != '\0') {
         a98_path_join(cfg->workspace, sizeof(cfg->workspace), exe_dir, "workspace");
     } else {
-        strcpy(cfg->workspace, "workspace");
+        strncpy(cfg->workspace, "workspace", sizeof(cfg->workspace) - 1);
     }
     cfg->max_tokens = 2048;
     cfg->temperature = 0.7;
     cfg->stream = 1;
     cfg->tls_verify = 1;
     cfg->allow_outside = 0;
-    cfg->allow_shell = 1;
+    /* Shell execution stays off until the user turns it on in Settings or the
+     * INI.  dist/SAMPLE.INI and the README have always documented 0. */
+    cfg->allow_shell = 0;
     cfg->max_steps = 32;
     cfg->connect_timeout_sec = 30;
     cfg->request_timeout_sec = 180;
@@ -64,18 +67,33 @@ void config_defaults(Config *cfg, const char *exe_dir)
 static void read_str(const char *ini, const char *section, const char *key,
                      const char *def, char *out, size_t cap)
 {
+    /* The staging buffer must be able to hold the biggest destination we use,
+     * which is system_prompt (4096).  Sizing it from A98_MAX_PATH truncated
+     * long prompts silently -- and config_save() then wrote the truncated
+     * value back to the INI. */
+    char tmp[4096];
     DWORD n;
+    DWORD size;
 
     if (out == NULL || cap == 0) {
         return;
     }
-    n = GetPrivateProfileStringA(section, key, def ? def : "",
-                                 out, (DWORD)cap, ini);
-    if (n == 0 && def != NULL) {
+    size = (DWORD)(cap < sizeof(tmp) ? cap : sizeof(tmp));
+    n = GetPrivateProfileStringA(section, key, "", tmp, size, ini);
+    if (n > 0) {
+        config_trim(tmp);
+        strncpy(out, tmp, cap - 1);
+        out[cap - 1] = '\0';
+        if (n >= size - 1) {
+            log_warn("configuration [%s] %s is longer than %lu bytes; "
+                     "it was truncated", section, key,
+                     (unsigned long)size - 1);
+        }
+    } else if (def != NULL && def != out) {
         strncpy(out, def, cap - 1);
         out[cap - 1] = '\0';
+        config_trim(out);
     }
-    config_trim(out);
 }
 
 static int read_int(const char *ini, const char *section, const char *key, int def)
@@ -176,49 +194,53 @@ int config_load(Config *cfg, const char *ini_path)
     return 0;
 }
 
-static void write_str(const char *ini, const char *section, const char *key,
-                      const char *value)
+static int write_str(const char *ini, const char *section, const char *key,
+                     const char *value)
 {
-    WritePrivateProfileStringA(section, key, value ? value : "", ini);
+    return WritePrivateProfileStringA(section, key, value ? value : "", ini)
+               ? 0 : -1;
 }
 
 int config_save(const Config *cfg, const char *ini_path)
 {
     char tmp[64];
+    int ok = 1;
 
     if (cfg == NULL || ini_path == NULL) {
         return -1;
     }
-    write_str(ini_path, "api", "base", cfg->api_base);
-    write_str(ini_path, "api", "key", cfg->api_key);
-    write_str(ini_path, "api", "model", cfg->model);
-    write_str(ini_path, "api", "system_prompt", cfg->system_prompt);
-    write_str(ini_path, "api", "extra_headers", cfg->extra_headers);
+    /* Every write is checked: a read-only directory (the CD-ROM / network
+     * share case the README warns about) used to fail completely silently. */
+    ok = (write_str(ini_path, "api", "base", cfg->api_base) == 0) && ok;
+    ok = (write_str(ini_path, "api", "key", cfg->api_key) == 0) && ok;
+    ok = (write_str(ini_path, "api", "model", cfg->model) == 0) && ok;
+    ok = (write_str(ini_path, "api", "system_prompt", cfg->system_prompt) == 0) && ok;
+    ok = (write_str(ini_path, "api", "extra_headers", cfg->extra_headers) == 0) && ok;
     sprintf(tmp, "%d", cfg->max_tokens);
-    write_str(ini_path, "api", "max_tokens", tmp);
+    ok = (write_str(ini_path, "api", "max_tokens", tmp) == 0) && ok;
     sprintf(tmp, "%.2f", cfg->temperature);
-    write_str(ini_path, "api", "temperature", tmp);
+    ok = (write_str(ini_path, "api", "temperature", tmp) == 0) && ok;
     sprintf(tmp, "%d", cfg->stream ? 1 : 0);
-    write_str(ini_path, "api", "stream", tmp);
+    ok = (write_str(ini_path, "api", "stream", tmp) == 0) && ok;
 
-    write_str(ini_path, "agent", "workspace", cfg->workspace);
+    ok = (write_str(ini_path, "agent", "workspace", cfg->workspace) == 0) && ok;
     sprintf(tmp, "%d", cfg->allow_outside ? 1 : 0);
-    write_str(ini_path, "agent", "allow_outside", tmp);
+    ok = (write_str(ini_path, "agent", "allow_outside", tmp) == 0) && ok;
     sprintf(tmp, "%d", cfg->allow_shell ? 1 : 0);
-    write_str(ini_path, "agent", "allow_shell", tmp);
+    ok = (write_str(ini_path, "agent", "allow_shell", tmp) == 0) && ok;
     sprintf(tmp, "%d", cfg->max_steps);
-    write_str(ini_path, "agent", "max_steps", tmp);
+    ok = (write_str(ini_path, "agent", "max_steps", tmp) == 0) && ok;
     sprintf(tmp, "%d", cfg->connect_timeout_sec);
-    write_str(ini_path, "agent", "connect_timeout", tmp);
+    ok = (write_str(ini_path, "agent", "connect_timeout", tmp) == 0) && ok;
     sprintf(tmp, "%d", cfg->request_timeout_sec);
-    write_str(ini_path, "agent", "request_timeout", tmp);
+    ok = (write_str(ini_path, "agent", "request_timeout", tmp) == 0) && ok;
 
     sprintf(tmp, "%d", cfg->tls_verify ? 1 : 0);
-    write_str(ini_path, "tls", "verify", tmp);
+    ok = (write_str(ini_path, "tls", "verify", tmp) == 0) && ok;
 
     sprintf(tmp, "%d", cfg->log_level);
-    write_str(ini_path, "log", "level", tmp);
-    return 0;
+    ok = (write_str(ini_path, "log", "level", tmp) == 0) && ok;
+    return ok ? 0 : -1;
 }
 
 int config_ensure(Config *cfg, const char *ini_path)

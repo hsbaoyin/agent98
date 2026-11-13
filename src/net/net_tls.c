@@ -11,6 +11,69 @@
 #define NET_IOBUF_SIZE 16384
 #define NET_SELECT_MS 200
 
+typedef struct {
+    const br_x509_class *vtable;
+    const br_x509_class **inner;
+} x509_noanchor_context;
+
+static void xwc_start_chain(const br_x509_class **ctx, const char *server_name)
+{
+    x509_noanchor_context *xwc = (x509_noanchor_context *)ctx;
+
+    /* This wrapper is only installed when tls.verify=0.  Passing NULL makes
+     * br_x509_minimal skip the certificate-name match, which is what made
+     * "--insecure against an IP address" fail before: get_pkey() returns NULL
+     * for BR_ERR_X509_BAD_SERVER_NAME, so the handshake aborted even though
+     * end_chain() had been forced to succeed.  SNI is sent from the engine's
+     * own copy of the name (br_ssl_client_reset), so it is unaffected.
+     * An expired certificate still fails: br_x509_minimal reports
+     * BR_ERR_X509_EXPIRED and there is no key to continue with. */
+    A98_UNUSED(server_name);
+    (*xwc->inner)->start_chain(xwc->inner, NULL);
+}
+
+static void xwc_start_cert(const br_x509_class **ctx, uint32_t length)
+{
+    x509_noanchor_context *xwc = (x509_noanchor_context *)ctx;
+    (*xwc->inner)->start_cert(xwc->inner, length);
+}
+
+static void xwc_append(const br_x509_class **ctx, const unsigned char *buf, size_t len)
+{
+    x509_noanchor_context *xwc = (x509_noanchor_context *)ctx;
+    (*xwc->inner)->append(xwc->inner, buf, len);
+}
+
+static void xwc_end_cert(const br_x509_class **ctx)
+{
+    x509_noanchor_context *xwc = (x509_noanchor_context *)ctx;
+    (*xwc->inner)->end_cert(xwc->inner);
+}
+
+static unsigned xwc_end_chain(const br_x509_class **ctx)
+{
+    x509_noanchor_context *xwc = (x509_noanchor_context *)ctx;
+    (*xwc->inner)->end_chain(xwc->inner);
+    /* In no-verify mode, ignore validation failures */
+    return 0;
+}
+
+static const br_x509_pkey *xwc_get_pkey(const br_x509_class *const *ctx, unsigned *usages)
+{
+    x509_noanchor_context *xwc = (x509_noanchor_context *)ctx;
+    return (*xwc->inner)->get_pkey(xwc->inner, usages);
+}
+
+static const br_x509_class x509_noanchor_vtable = {
+    sizeof(x509_noanchor_context),
+    xwc_start_chain,
+    xwc_start_cert,
+    xwc_append,
+    xwc_end_cert,
+    xwc_end_chain,
+    xwc_get_pkey
+};
+
 struct NetConn {
     SOCKET sock;
     int tls;
@@ -26,6 +89,7 @@ struct NetConn {
 
     br_ssl_client_context cc;
     br_x509_minimal_context xc;
+    x509_noanchor_context xwc;
     br_sslio_context ioc;
     unsigned char *iobuf;
 };
@@ -396,7 +460,9 @@ static int tls_start(NetConn *c, const Url *url, int verify)
         br_x509_minimal_set_time(&c->xc, days, secs);
     }
     if (!verify) {
-        br_ssl_engine_set_x509(&c->cc.eng, NULL);
+        c->xwc.vtable = &x509_noanchor_vtable;
+        c->xwc.inner = (const br_x509_class **)&c->xc.vtable;
+        br_ssl_engine_set_x509(&c->cc.eng, (const br_x509_class **)&c->xwc);
     }
 
     entropy_seed(seed, sizeof(seed));

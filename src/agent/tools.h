@@ -23,4 +23,9 @@ const ToolDef *tools_find(const char *name);
 int tools_execute(struct Agent *agent, const char *name, const char *args_json,
                   Str *out, char *err, size_t errcap);
 
+/* Human-readable confirm text. danger: 0=low, 1=medium, 2=high.
+ * out receives a multi-line summary in UTF-8 (caller converts to ACP). */
+void tools_format_confirm(const char *name, const char *args_json,
+                         char *out, size_t outcap, int *danger);
+
 #endif /* A98_TOOLS_H */

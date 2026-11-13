@@ -137,7 +137,10 @@ int http_parse_response_head(const char *data, size_t len, HttpResponse *out,
                 }
                 vlen = end - vstart;
                 if (vlen >= sizeof(value)) {
-                    vlen = sizeof(value) - 1;
+                    /* Truncating used to turn a long Content-Length or
+                     * Transfer-Encoding into a confusing parse error. */
+                    set_err(err, errcap, "HTTP header value is too long");
+                    return -1;
                 }
                 memcpy(value, data + vstart, vlen);
                 value[vlen] = '\0';
@@ -155,9 +158,13 @@ int http_parse_response_head(const char *data, size_t len, HttpResponse *out,
                     out->content_length = cl;
                     out->has_length = 1;
                 } else if (a98_strcasecmp(name, "Transfer-Encoding") == 0) {
-                    if (strstr(value, "chunked") != NULL ||
-                        strstr(value, "Chunked") != NULL) {
-                        out->chunked = 1;
+                    size_t vlen = strlen(value);
+                    size_t k;
+                    for (k = 0; k + 7 <= vlen; k++) {
+                        if (a98_strncasecmp(value + k, "chunked", 7) == 0) {
+                            out->chunked = 1;
+                            break;
+                        }
                     }
                 } else if (a98_strcasecmp(name, "Content-Type") == 0) {
                     strncpy(out->content_type, value, sizeof(out->content_type) - 1);
@@ -182,6 +189,33 @@ int http_parse_response_head(const char *data, size_t len, HttpResponse *out,
     return 0;
 }
 
+/* Is `name` already present in a "Name: value\r\n" block?  Used to avoid
+ * sending two Host or Accept headers when the caller supplies its own. */
+static int headers_contain(const char *block, const char *name)
+{
+    const char *p;
+    size_t nlen;
+
+    if (block == NULL || name == NULL) {
+        return 0;
+    }
+    nlen = strlen(name);
+    p = block;
+    while (*p != '\0') {
+        const char *eol = p;
+
+        while (*eol != '\0' && *eol != '\n') {
+            eol++;
+        }
+        if ((size_t)(eol - p) > nlen &&
+            a98_strncasecmp(p, name, nlen) == 0 && p[nlen] == ':') {
+            return 1;
+        }
+        p = (*eol == '\0') ? eol : eol + 1;
+    }
+    return 0;
+}
+
 static int build_request(Str *req, const char *method, const Url *url,
                          const char *extra_headers, size_t body_len)
 {
@@ -189,9 +223,13 @@ static int build_request(Str *req, const char *method, const Url *url,
 
     url_host_header(url, host, sizeof(host));
     str_appendf(req, "%s %s HTTP/1.1\r\n", method, url->path);
-    str_appendf(req, "Host: %s\r\n", host);
+    if (!headers_contain(extra_headers, "Host")) {
+        str_appendf(req, "Host: %s\r\n", host);
+    }
     str_appendf(req, "User-Agent: Agent98/%s\r\n", A98_VERSION);
-    str_appendf(req, "Accept: */*\r\n");
+    if (!headers_contain(extra_headers, "Accept")) {
+        str_appendf(req, "Accept: */*\r\n");
+    }
     str_appendf(req, "Connection: close\r\n");
     if (extra_headers != NULL && extra_headers[0] != '\0') {
         str_append_cstr(req, extra_headers);
@@ -228,6 +266,10 @@ int http_request(NetConn *conn, const char *method, const Url *url,
     str_init(&head);
     memset(&decoder, 0, sizeof(decoder));
     str_init(&decoder.line);
+
+    if (body == NULL) {
+        body_len = 0;
+    }
 
     build_request(&req, method, url, extra_headers, body_len);
     log_debug("HTTP %s %s (%lu body bytes)", method, url->path, (unsigned long)body_len);

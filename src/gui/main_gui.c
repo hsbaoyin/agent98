@@ -32,6 +32,7 @@
 #include "../core/str.h"
 #include "../core/utf8.h"
 #include "../agent/agent.h"
+#include "../agent/tools.h"
 #include "../agent/api_openai.h"
 #include "../net/http.h"
 #include "../net/net.h"
@@ -45,6 +46,11 @@
 #endif
 #ifndef EM_SETBKGNDCOLOR
 #define EM_SETBKGNDCOLOR (WM_USER + 67)
+#endif
+/* MinGW-w64 headers only expose the 64-bit-safe alias.  The value is the
+ * same -4 that Win9x expects. */
+#ifndef GWL_WNDPROC
+#define GWL_WNDPROC GWLP_WNDPROC
 #endif
 
 #define A98_WM_EVENT   (WM_APP + 1)
@@ -163,9 +169,9 @@ static const ProviderPreset g_presets[] = {
 #define PRESET_COUNT ((int)(sizeof(g_presets) / sizeof(g_presets[0])))
 
 static LRESULT CALLBACK main_wndproc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp);
-static BOOL CALLBACK settings_proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp);
-static BOOL CALLBACK confirm_proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp);
-static BOOL CALLBACK about_proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp);
+static INT_PTR CALLBACK settings_proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp);
+static INT_PTR CALLBACK confirm_proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp);
+static INT_PTR CALLBACK about_proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp);
 static DWORD WINAPI worker_proc(void *param);
 /* ------------------------------------------------------------------ */
 /* Small helpers                                                       */
@@ -856,6 +862,18 @@ static void sanitize_session_summary(const char *acp, char *out, size_t cap)
         o--;
     }
     out[o] = '\0';
+
+    /* Avoid DOS reserved device names on Windows 9x */
+    if (a98_strcasecmp(out, "CON") == 0 || a98_strcasecmp(out, "PRN") == 0 ||
+        a98_strcasecmp(out, "AUX") == 0 || a98_strcasecmp(out, "NUL") == 0 ||
+        a98_strcasecmp(out, "COM1") == 0 || a98_strcasecmp(out, "COM2") == 0 ||
+        a98_strcasecmp(out, "COM3") == 0 || a98_strcasecmp(out, "COM4") == 0 ||
+        a98_strcasecmp(out, "LPT1") == 0 || a98_strcasecmp(out, "LPT2") == 0 ||
+        a98_strcasecmp(out, "LPT3") == 0) {
+        copy_str(out, cap, "_session");
+        return;
+    }
+
     if (o == 0) {
         copy_str(out, cap, "session");
     }
@@ -869,8 +887,7 @@ static int build_session_path(App *app)
     char stamp[32];
     char name[128];
     char candidate[A98_MAX_PATH];
-    time_t now;
-    struct tm *tmv;
+    SYSTEMTIME st;
     int i;
 
     if (app == NULL) {
@@ -882,15 +899,11 @@ static int build_session_path(App *app)
             break;
         }
     }
-    now = time(NULL);
-    tmv = localtime(&now);
-    if (tmv != NULL) {
-        sprintf(stamp, "%04d%02d%02d_%02d%02d",
-                tmv->tm_year + 1900, tmv->tm_mon + 1, tmv->tm_mday,
-                tmv->tm_hour, tmv->tm_min);
-    } else {
-        copy_str(stamp, sizeof(stamp), "session");
-    }
+    /* GetLocalTime() instead of localtime(): the latter returns a pointer to a
+     * shared static buffer that the worker thread's logger also uses. */
+    GetLocalTime(&st);
+    sprintf(stamp, "%04d%02d%02d_%02d%02d",
+            st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute);
     acp = a98_utf8_to_acp(first != NULL ? first : "");
     sanitize_session_summary(acp, summary, sizeof(summary));
     a98_free(acp);
@@ -986,6 +999,11 @@ static int gui_confirm(void *ctx, const char *tool, const char *args_json)
         a98_free(req.args);
         return 0;
     }
+    /* The UI thread keeps using `req` (a stack frame of this thread) and
+     * req.args until it signals this event, so the wait must never be
+     * abandoned early: doing so let a modal dialog read freed memory and set
+     * an event on a closed handle.  Cancellation is handled before the dialog
+     * is shown (see A98_WM_CONFIRM) and immediately after it closes. */
     WaitForSingleObject(req.event, INFINITE);
     CloseHandle(req.event);
     a98_free(req.args);
@@ -1310,7 +1328,11 @@ static void do_export(App *app)
     /* RichEdit stores paragraph breaks as CR but WM_GETTEXT expands them to
      * CRLF, so the returned text can be up to twice as long as the length
      * reported by WM_GETTEXTLENGTH. */
-    cap = len * 2 + 1;
+    if ((size_t)len > 0x3FFFFFFFU) {
+        cap = 0x7FFFFFFE;
+    } else {
+        cap = len * 2 + 1;
+    }
     buf = (char *)a98_alloc((size_t)cap + 1);
     if (buf == NULL) {
         msgbox_utf8(app->hwnd, "Out of memory.", MB_OK | MB_ICONERROR);
@@ -1468,7 +1490,8 @@ static void settings_test_connection(HWND dlg, App *app)
     UpdateWindow(dlg);
     SetCursor(LoadCursorA(NULL, IDC_WAIT));
 
-    conn = net_open(&url, verify, 10, 20, err, sizeof(err));
+    /* This runs on the UI thread, so keep the worst case short. */
+    conn = net_open(&url, verify, 8, 12, err, sizeof(err));
     if (conn == NULL) {
         snprintf(result, sizeof(result), "Failed: %s",
                  err[0] != '\0' ? err : "cannot connect");
@@ -1527,7 +1550,7 @@ static void do_settings(App *app)
 /* Dialogs                                                             */
 /* ------------------------------------------------------------------ */
 
-static BOOL CALLBACK settings_proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
+static INT_PTR CALLBACK settings_proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
 {
     App *app = g_dlg_app;
 
@@ -1729,18 +1752,35 @@ static BOOL CALLBACK settings_proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
     return FALSE;
 }
 
-static BOOL CALLBACK confirm_proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
+static INT_PTR CALLBACK confirm_proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
 {
     (void)lp;
     switch (msg) {
     case WM_INITDIALOG:
-        dlg_set_utf8(dlg, IDC_CONFIRM_TOOL,
-                     g_confirm_tool != NULL ? g_confirm_tool : "");
-        dlg_set_utf8(dlg, IDC_CONFIRM_ARGS,
-                     g_confirm_args != NULL ? g_confirm_args : "{}");
-        center_window(dlg);
-        SetFocus(GetDlgItem(dlg, IDOK));
-        return FALSE;
+        {
+            char summary[1200];
+            int danger = 0;
+            tools_format_confirm(g_confirm_tool, g_confirm_args, summary,
+                                 sizeof(summary), &danger);
+            dlg_set_utf8(dlg, IDC_CONFIRM_TOOL,
+                         danger >= 2 ? "HIGH RISK tool call" :
+                         (danger == 1 ? "Write operation" : "Tool call"));
+            dlg_set_utf8(dlg, IDC_CONFIRM_ARGS, summary);
+            center_window(dlg);
+            if (danger >= 2) {
+                /* Destructive tools default to Deny: Cancel becomes the
+                 * default button.  Return TRUE so the dialog manager keeps
+                 * this focus instead of resetting it to the first control. */
+                SendMessageA(GetDlgItem(dlg, IDCANCEL), BM_SETSTYLE,
+                             (WPARAM)BS_DEFPUSHBUTTON, TRUE);
+                SendMessageA(GetDlgItem(dlg, IDOK), BM_SETSTYLE,
+                             (WPARAM)BS_PUSHBUTTON, TRUE);
+                SetFocus(GetDlgItem(dlg, IDCANCEL));
+            } else {
+                SetFocus(GetDlgItem(dlg, IDOK));
+            }
+        }
+        return TRUE;
     case WM_COMMAND:
         switch (LOWORD(wp)) {
         case IDOK:
@@ -1762,7 +1802,7 @@ static BOOL CALLBACK confirm_proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
     return FALSE;
 }
 
-static BOOL CALLBACK about_proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
+static INT_PTR CALLBACK about_proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
 {
     (void)wp;
     (void)lp;
@@ -2045,6 +2085,12 @@ static LRESULT CALLBACK main_wndproc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         SetBkColor((HDC)wp, GetSysColor(COLOR_WINDOW));
         return (LRESULT)GetSysColorBrush(COLOR_WINDOW);
 
+    case WM_KEYDOWN:
+        if (wp == VK_ESCAPE) {
+            do_stop(app);
+            return 0;
+        }
+        break;
     case WM_COMMAND:
         switch (LOWORD(wp)) {
         case IDC_SEND:
@@ -2079,6 +2125,28 @@ static LRESULT CALLBACK main_wndproc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                 int idx = (int)SendMessageA(app->session_combo, CB_GETCURSEL,
                                             0, 0);
                 do_session_select(app, idx);
+            }
+            return 0;
+
+        case IDM_TOOLS_LIST:
+            {
+                int count = 0, ti;
+                const ToolDef *all = tools_all(&count);
+                Str s;
+                char *acp;
+                str_init(&s);
+                str_appendf(&s, "Agent98 tools (%d):\r\n\r\n", count);
+                for (ti = 0; ti < count && ti < 40; ti++) {
+                    str_appendf(&s, "%s%s\r\n  %s\r\n",
+                                all[ti].name,
+                                all[ti].needs_confirm ? " [confirm]" : "",
+                                all[ti].description ? all[ti].description : "");
+                }
+                acp = a98_utf8_to_acp(str_cstr(&s));
+                MessageBoxA(hwnd, acp ? acp : str_cstr(&s), "Tools",
+                            MB_OK | MB_ICONINFORMATION);
+                a98_free(acp);
+                str_free(&s);
             }
             return 0;
         case IDM_ABOUT:
@@ -2176,13 +2244,19 @@ static LRESULT CALLBACK main_wndproc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
     case A98_WM_CONFIRM: {
         ConfirmReq *req = (ConfirmReq *)lp;
         if (req != NULL) {
-            g_confirm_tool = req->tool;
-            g_confirm_args = req->args;
-            req->result = (int)DialogBoxParamA(app->hinst,
-                                               MAKEINTRESOURCEA(IDD_CONFIRM),
-                                               hwnd, confirm_proc, 0);
-            g_confirm_tool = NULL;
-            g_confirm_args = NULL;
+            if (app->cancel) {
+                /* Stop was pressed before the dialog appeared; deny without
+                 * bothering the user. */
+                req->result = 0;
+            } else {
+                g_confirm_tool = req->tool;
+                g_confirm_args = req->args;
+                req->result = (int)DialogBoxParamA(app->hinst,
+                                                   MAKEINTRESOURCEA(IDD_CONFIRM),
+                                                   hwnd, confirm_proc, 0);
+                g_confirm_tool = NULL;
+                g_confirm_args = NULL;
+            }
             SetEvent(req->event);
         }
         return 0;
@@ -2234,6 +2308,12 @@ static HFONT make_ui_font(void)
     ncm.cbSize = sizeof(ncm);
     if (SystemParametersInfoA(SPI_GETNONCLIENTMETRICS, sizeof(ncm), &ncm, 0)) {
         return CreateFontIndirectA(&ncm.lfMessageFont);
+    }
+    if (sizeof(ncm) > sizeof(int)) {
+        ncm.cbSize = sizeof(ncm) - sizeof(int);
+        if (SystemParametersInfoA(SPI_GETNONCLIENTMETRICS, ncm.cbSize, &ncm, 0)) {
+            return CreateFontIndirectA(&ncm.lfMessageFont);
+        }
     }
     return (HFONT)GetStockObject(DEFAULT_GUI_FONT);
 }

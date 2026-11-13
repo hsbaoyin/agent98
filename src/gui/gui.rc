@@ -22,6 +22,8 @@ BEGIN
     BEGIN
         MENUITEM "&Open workspace",          IDM_WORKSPACE
         MENUITEM "&Settings...",             IDM_SETTINGS
+        MENUITEM SEPARATOR
+        MENUITEM "&List tools...",          IDM_TOOLS_LIST
     END
     POPUP "&Help"
     BEGIN
@@ -31,6 +33,7 @@ END
 
 IDR_ACCEL ACCELERATORS
 BEGIN
+    VK_ESCAPE, IDC_STOP, VIRTKEY
     "N", IDM_NEW, VIRTKEY, CONTROL
     "S", IDM_SAVE, VIRTKEY, CONTROL
     "O", IDM_LOAD, VIRTKEY, CONTROL

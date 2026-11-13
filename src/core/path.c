@@ -324,7 +324,9 @@ int a98_path_resolve_in_root(const char *root, const char *user_path,
 {
     char joined[A98_MAX_PATH * 2];
     char full[A98_MAX_PATH * 2];
+    char full_lc[A98_MAX_PATH * 2];
     char root_full[A98_MAX_PATH * 2];
+    char root_lc[A98_MAX_PATH * 2];
     DWORD n;
     size_t rlen;
 
@@ -349,19 +351,24 @@ int a98_path_resolve_in_root(const char *root, const char *user_path,
     if (n == 0 || n >= sizeof(root_full)) {
         return -1;
     }
-    lower_ascii(full);
-    lower_ascii(root_full);
-    rlen = strlen(root_full);
-    while (rlen > 0 && root_full[rlen - 1] == '\\') {
-        root_full[--rlen] = '\0';
+    /* Compare case-insensitively on copies: the resolved path handed back to
+     * the caller keeps the on-disk spelling.  Lower-casing `full` in place
+     * made every tool report paths in all lower case. */
+    strcpy(full_lc, full);
+    strcpy(root_lc, root_full);
+    lower_ascii(full_lc);
+    lower_ascii(root_lc);
+    rlen = strlen(root_lc);
+    while (rlen > 0 && root_lc[rlen - 1] == '\\') {
+        root_lc[--rlen] = '\0';
     }
     if (rlen == 0) {
         return -1;
     }
-    if (strncmp(full, root_full, rlen) != 0) {
+    if (strncmp(full_lc, root_lc, rlen) != 0) {
         return 0;
     }
-    if (full[rlen] != '\0' && full[rlen] != '\\') {
+    if (full_lc[rlen] != '\0' && full_lc[rlen] != '\\') {
         return 0;
     }
     if (strlen(full) >= cap) {

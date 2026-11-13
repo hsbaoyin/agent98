@@ -97,6 +97,22 @@ New-Item -ItemType Directory -Force $sessions | Out-Null
 Get-ChildItem $sessions -Filter *.json -ErrorAction SilentlyContinue |
     Remove-Item -Force
 
+$root = Split-Path -Parent $PSScriptRoot
+$mockProcess = $null
+$needMock = $true
+try {
+    $c = New-Object Net.Sockets.TcpClient
+    $c.Connect('127.0.0.1', 8787)
+    $c.Close()
+    $needMock = $false
+} catch {}
+
+if ($needMock) {
+    $mockScript = Join-Path $root 'tests\mock_openai.js'
+    $mockProcess = Start-Process -FilePath 'node' -ArgumentList @("`"$mockScript`"", "8787") -PassThru -WindowStyle Hidden
+    Start-Sleep -Milliseconds 800
+}
+
 $p = Start-Process -FilePath $exe -WorkingDirectory $DirAbs -PassThru
 try {
     $hwnd = [IntPtr]::Zero
@@ -272,7 +288,10 @@ try {
     Write-Host 'GUI smoke test passed'
 }
 finally {
-    if (-not $p.HasExited) {
+    if ($p -and -not $p.HasExited) {
         Stop-Process -Id $p.Id -Force
+    }
+    if ($mockProcess -and -not $mockProcess.HasExited) {
+        Stop-Process -Id $mockProcess.Id -Force
     }
 }

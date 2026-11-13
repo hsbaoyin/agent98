@@ -1,4 +1,4 @@
-Agent98 0.1.0 - Windows 9x 原生 AI 客户端
+Agent98 0.2.0 - Windows 9x 原生 AI 客户端
 ==========================================
 
 Agent98 是一个运行在 Windows 95/98/Me 上的原生 32 位程序，直接通过
@@ -69,7 +69,9 @@ GUI 功能
 工具与安全
 ----------
 模型可以调用本地工具：读文件、写文件、列目录、搜索文件、执行命令。
-- 写文件和执行命令每次都会弹出确认对话框。
+- 写文件、删除、移动、执行命令和读取环境变量都会弹出确认对话框；高危调用默认聚焦拒绝按钮。
+- 内置 31 个工具（读/写/搜索/执行/磁盘/环境/待办），完整列表见 TOOLS.md。
+- rmdir_force 递归删除前会确认，并始终拒绝删除 workspace 根目录。
 - workspace 目录之外默认不可访问，可在 INI 里打开 allow_outside。
 - run_command 使用 16 位 COMMAND.COM，只支持 ver、dir、type、set、
   mem 等基本命令，不支持 cmd.exe / PowerShell 语法。
@@ -85,7 +87,7 @@ A: 网络抖动或服务端超时现在会自动重试，最多 2 次（间隔 1 秒、2 秒），
    过程记录在 AGENT98.LOG。连续失败请检查拨号连接或更换 API 地址。
 
 Q: 界面是英文？
-A: 0.1.0 只有英文界面，中文通过 RichEdit 正常显示。
+A: 目前界面只有英文，中文通过 RichEdit 正常显示。
 
 Q: 窗口关闭很慢？
 A: 关闭时会等待后台线程最多 3 秒。
@@ -96,6 +98,11 @@ A: 先确认程序是从硬盘运行的，然后把 AGENT98.LOG 的最后几十行发出来。
 
 版本
 ----
+0.2.0  31 个工具（含 apply_patch / edit / grep / glob / tree / diff / checksum 等）、
+       确认摘要与风险等级、CLI 新增 /tools /stop /export 与 --ini 等参数、
+       GUI 新增 Tools -> List tools... 和 Esc 停止、日志参数脱敏。
+       修复：rmdir_force 根目录守卫、GUI 高危确认焦点、env 未确认读取、
+       /export 编码、日志级别、apply_patch 备份失败处理。
 0.1.0  首个发布版：CLI + GUI、BearSSL TLS 1.2、流式对话、本地工具、
        服务商预设与连接测试、运行时环境注入。
        修订：瞬时网络错误自动重试 2 次；写文本文件自动使用 CRLF；

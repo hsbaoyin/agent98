@@ -13,6 +13,7 @@
 #include "agent/agent.h"
 #include "agent/tools.h"
 #include "core/config.h"
+#include "core/path.h"
 #include "core/str.h"
 
 #include <stdio.h>
@@ -111,8 +112,9 @@ int main(void)
     run(&a, "list_dir", "{\"path\":\"build/host\"}");
     run(&a, "search_files",
         "{\"path\":\"build/host\",\"pattern\":\"world\"}");
-    run(&a, "run_command",
-        "{\"command\":\"echo stdout-line & echo stderr-line 1>&2\"}");
+    /* COMMAND.COM on Windows 9x understands neither "&" nor "1>&2"; the
+     * test only checks that a command runs and its output is captured. */
+    run(&a, "run_command", "{\"command\":\"echo stdout-line\"}");
 
     /* Text files must come out with DOS line endings, even when the model
      * sends bare LF; existing CRLF pairs must not be doubled. */
@@ -237,6 +239,45 @@ int main(void)
                 printf("PASS: UTF-8 BOM is stripped\n");
             }
         }
+    }
+
+    /* rmdir_force must refuse the workspace root even when the INI path is
+     * relative and carries a trailing separator. */
+    {
+        char saved_ws[sizeof(a.workspace)];
+        int rc;
+        FILE *f;
+
+        strcpy(saved_ws, a.workspace);
+        strcpy(cfg.workspace, "build\\host\\wsroot\\");
+        strcpy(a.workspace, "build\\host\\wsroot\\");
+        a98_path_mkdirs("build\\host\\wsroot\\sub");
+        f = fopen("build\\host\\wsroot\\keep.txt", "wb");
+        if (f != NULL) {
+            fputs("keep", f);
+            fclose(f);
+        }
+
+        rc = run_capture(&a, "rmdir_force",
+                         "{\"path\":\".\",\"confirm\":true}", NULL, 0);
+        if (rc == 0 || !a98_path_is_dir("build\\host\\wsroot")) {
+            printf("FAIL: rmdir_force deleted the workspace root\n");
+            failures++;
+        } else {
+            printf("PASS: rmdir_force refuses the workspace root\n");
+        }
+
+        rc = run_capture(&a, "rmdir_force",
+                         "{\"path\":\"sub\",\"confirm\":true}", NULL, 0);
+        if (rc != 0 || a98_path_is_dir("build\\host\\wsroot\\sub")) {
+            printf("FAIL: rmdir_force did not remove a subdirectory\n");
+            failures++;
+        } else {
+            printf("PASS: rmdir_force removes a subdirectory\n");
+        }
+
+        strcpy(a.workspace, saved_ws);
+        strcpy(cfg.workspace, saved_ws);
     }
 
     if (failures != 0) {

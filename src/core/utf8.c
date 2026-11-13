@@ -128,6 +128,16 @@ unsigned short *a98_utf8_to_utf16(const char *s, size_t *out_units)
     i = 0;
     o = 0;
     while (i < len) {
+        if (o + 3 > cap) {
+            unsigned short *bigger;
+            cap = cap * 2 + 16;
+            bigger = (unsigned short *)a98_realloc(w, (cap + 1) * sizeof(unsigned short));
+            if (bigger == NULL) {
+                a98_free(w);
+                return NULL;
+            }
+            w = bigger;
+        }
         n = a98_utf8_decode(s + i, len - i, &cp);
         if (n <= 0) {
             w[o++] = (unsigned short)'?';
@@ -141,16 +151,6 @@ unsigned short *a98_utf8_to_utf16(const char *s, size_t *out_units)
             unsigned int v = cp - 0x10000;
             w[o++] = (unsigned short)(0xD800 + (v >> 10));
             w[o++] = (unsigned short)(0xDC00 + (v & 0x3FF));
-        }
-        if (o + 2 > cap) {
-            unsigned short *bigger;
-            cap = cap * 2 + 16;
-            bigger = (unsigned short *)a98_realloc(w, (cap + 1) * sizeof(unsigned short));
-            if (bigger == NULL) {
-                a98_free(w);
-                return NULL;
-            }
-            w = bigger;
         }
     }
     w[o] = 0;

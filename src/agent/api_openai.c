@@ -94,6 +94,42 @@ static void append_dup(char **dst, const char *src)
     }
 }
 
+/*
+ * Streaming providers do not agree on how a tool call's name and id are sent.
+ * OpenAI sends each one once, but several OpenAI-compatible servers (proxies,
+ * local runtimes) repeat the complete value in every delta.  Blindly appending
+ * produced "list_dirlist_dir" -- an unknown tool -- and a mangled
+ * tool_call_id, which the provider rejects with HTTP 400 on the next round.
+ *
+ * A fragment that already begins with what we have is a repeat (keep the
+ * longer value); anything else is a real continuation and gets appended.
+ */
+static void merge_stream_field(char **dst, const char *frag)
+{
+    size_t have;
+
+    if (frag == NULL || frag[0] == '\0') {
+        return;
+    }
+    if (*dst == NULL) {
+        *dst = a98_strdup(frag);
+        return;
+    }
+    have = strlen(*dst);
+    if (strncmp(*dst, frag, have) == 0) {
+        if (frag[have] != '\0') {
+            char *full = a98_strdup(frag);
+
+            if (full != NULL) {
+                a98_free(*dst);
+                *dst = full;
+            }
+        }
+        return;
+    }
+    append_dup(dst, frag);
+}
+
 static int apply_error_object(cJSON *root, char *err, size_t errcap)
 {
     cJSON *error = cJSON_GetObjectItemCaseSensitive(root, "error");
@@ -147,18 +183,15 @@ static int apply_tool_calls_array(ChatResult *out, cJSON *calls, int delta_mode,
             set_err(err, errcap, "out of memory");
             return -1;
         }
-        if (id != NULL && id[0] != '\0') {
-            if (call->id == NULL) {
+        if (delta_mode) {
+            merge_stream_field(&call->id, id);
+            merge_stream_field(&call->name, name);
+        } else {
+            if (id != NULL && id[0] != '\0' && call->id == NULL) {
                 call->id = a98_strdup(id);
-            } else if (delta_mode) {
-                append_dup(&call->id, id);
             }
-        }
-        if (name != NULL && name[0] != '\0') {
-            if (call->name == NULL) {
+            if (name != NULL && name[0] != '\0' && call->name == NULL) {
                 call->name = a98_strdup(name);
-            } else if (delta_mode) {
-                append_dup(&call->name, name);
             }
         }
         if (args != NULL && args[0] != '\0') {
@@ -541,14 +574,37 @@ static char *build_request_json(const Config *cfg, const char *system_prompt,
     return text;
 }
 
+static int value_has_line_break(const char *s)
+{
+    for (; s != NULL && *s != '\0'; s++) {
+        if (*s == '\r' || *s == '\n') {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 char *api_build_headers(const Config *cfg, int stream)
 {
     Str h;
     const char *p;
+    const char *k;
 
     str_init(&h);
     if (cfg->api_key[0] != '\0') {
-        str_appendf(&h, "Authorization: Bearer %s\r\n", cfg->api_key);
+        /* A pasted key with a stray line break would otherwise split the
+         * request or inject a header.  Strip it and say so in the log. */
+        if (value_has_line_break(cfg->api_key)) {
+            log_warn("api.key contains a line break; it was removed from the "
+                     "Authorization header");
+        }
+        str_append_cstr(&h, "Authorization: Bearer ");
+        for (k = cfg->api_key; *k != '\0'; k++) {
+            if (*k != '\r' && *k != '\n') {
+                str_append_char(&h, *k);
+            }
+        }
+        str_append_cstr(&h, "\r\n");
     }
     str_append_cstr(&h, "Content-Type: application/json\r\n");
     str_appendf(&h, "Accept: %s\r\n",
@@ -570,7 +626,13 @@ char *api_build_headers(const Config *cfg, int stream)
                 len--;
             }
             if (len > 0) {
-                str_append(&h, start, len);
+                size_t i;
+
+                for (i = 0; i < len; i++) {
+                    if (start[i] != '\r' && start[i] != '\n') {
+                        str_append_char(&h, start[i]);
+                    }
+                }
                 str_append_cstr(&h, "\r\n");
             }
             if (*p == '|' || *p == '\n') {
@@ -597,8 +659,19 @@ static int make_endpoint(const char *base, Url *url, char *err, size_t errcap)
     }
     strcpy(tmp, base);
     len = strlen(tmp);
-    while (len > 9 && tmp[len - 1] == '/') {
-        tmp[--len] = '\0';
+    {
+        /* Strip trailing slashes, but never the "https://" separator itself: a
+         * base of "http://a/" used to become "http://a//chat/completions". */
+        size_t scheme_len = 0;
+
+        if (a98_strncasecmp(tmp, "https://", 8) == 0) {
+            scheme_len = 8;
+        } else if (a98_strncasecmp(tmp, "http://", 7) == 0) {
+            scheme_len = 7;
+        }
+        while (len > scheme_len && tmp[len - 1] == '/') {
+            tmp[--len] = '\0';
+        }
     }
     if (len < strlen(suffix) || a98_strcasecmp(tmp + len - strlen(suffix), suffix) != 0) {
         if (len + strlen(suffix) + 1 > sizeof(tmp)) {
@@ -829,9 +902,7 @@ static int api_chat_attempt(const Config *cfg, const Url *url,
     sink.result = out;
     sink.on_text = text_relay;
     sink.user = &relay;
-    str_init(&sink.sse.line);
-    str_init(&sink.sse.data);
-    str_init(&sink.sse.event);
+    sse_init(&sink.sse);
     str_init(&sink.raw);
     str_init(&sink.error_body);
 
@@ -884,7 +955,7 @@ static int api_chat_attempt(const Config *cfg, const Url *url,
         /* Non-streaming responses are parsed in one go, so deliver the
          * text here just like the SSE path does. */
         if (on_text != NULL && out->content.len > 0) {
-            if (on_text(ctx, out->content.data, out->content.len) != 0) {
+            if (text_relay(&relay, out->content.data, out->content.len) != 0) {
                 set_err(err, errcap, "response display aborted");
                 goto done_sink;
             }
@@ -906,7 +977,6 @@ int api_chat(const Config *cfg, const char *system_prompt,
              char *err, size_t errcap)
 {
     Url url;
-    char headers[2048];
     char *req = NULL;
     char *extra = NULL;
     int rc = -1;
@@ -933,7 +1003,6 @@ int api_chat(const Config *cfg, const char *system_prompt,
         set_err(err, errcap, "out of memory");
         goto done;
     }
-    snprintf(headers, sizeof(headers), "%s", extra);
 
     for (attempt = 0; attempt <= API_MAX_RETRIES; attempt++) {
         int retryable = 0;
@@ -950,7 +1019,7 @@ int api_chat(const Config *cfg, const char *system_prompt,
         if (err != NULL && errcap > 0) {
             err[0] = '\0';
         }
-        if (api_chat_attempt(cfg, &url, headers, req, out, on_text, ctx,
+        if (api_chat_attempt(cfg, &url, extra, req, out, on_text, ctx,
                              cancel, &retryable, err, errcap) == 0) {
             rc = 0;
             goto done;

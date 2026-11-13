@@ -2,6 +2,8 @@
 
 #ifdef _WIN32
 #include <windows.h>
+static CRITICAL_SECTION g_log_cs;
+static int g_log_cs_inited = 0;
 #endif
 
 static FILE *g_log_file = NULL;
@@ -9,6 +11,14 @@ static int g_log_level = LOG_LEVEL_INFO;
 
 void log_init(const char *path, int level)
 {
+#ifdef _WIN32
+    if (!g_log_cs_inited) {
+        InitializeCriticalSection(&g_log_cs);
+        g_log_cs_inited = 1;
+    }
+    EnterCriticalSection(&g_log_cs);
+#endif
+
     log_shutdown();
     g_log_level = level;
     if (path != NULL && path[0] != '\0') {
@@ -17,6 +27,10 @@ void log_init(const char *path, int level)
             g_log_file = NULL;
         }
     }
+
+#ifdef _WIN32
+    LeaveCriticalSection(&g_log_cs);
+#endif
 }
 
 void log_shutdown(void)
@@ -60,6 +74,7 @@ void log_write(int level, const char *fmt, ...)
     char msg[2048];
     char line[2200];
     time_t now;
+    struct tm local_tm;
     struct tm *tmv;
     va_list ap;
     int n;
@@ -74,12 +89,19 @@ void log_write(int level, const char *fmt, ...)
         msg[sizeof(msg) - 1] = '\0';
     }
 
+#ifdef _WIN32
+    if (g_log_cs_inited) {
+        EnterCriticalSection(&g_log_cs);
+    }
+#endif
+
     now = time(NULL);
     tmv = localtime(&now);
     if (tmv != NULL) {
+        local_tm = *tmv;
         sprintf(line, "%04d-%02d-%02d %02d:%02d:%02d [%s] %s\n",
-                tmv->tm_year + 1900, tmv->tm_mon + 1, tmv->tm_mday,
-                tmv->tm_hour, tmv->tm_min, tmv->tm_sec,
+                local_tm.tm_year + 1900, local_tm.tm_mon + 1, local_tm.tm_mday,
+                local_tm.tm_hour, local_tm.tm_min, local_tm.tm_sec,
                 level_name(level), msg);
     } else {
         sprintf(line, "[%s] %s\n", level_name(level), msg);
@@ -91,6 +113,9 @@ void log_write(int level, const char *fmt, ...)
     }
 #ifdef _WIN32
     OutputDebugStringA(line);
+    if (g_log_cs_inited) {
+        LeaveCriticalSection(&g_log_cs);
+    }
 #else
     fputs(line, stderr);
 #endif

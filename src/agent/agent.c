@@ -149,6 +149,17 @@ static void truncate_output(Str *out)
     if (out->len > MAX_TOOL_OUTPUT) {
         out->len = MAX_TOOL_OUTPUT;
         if (out->data != NULL) {
+            /* Back up while the first *excluded* byte is a UTF-8 continuation
+             * byte.  That leaves out->data[0..out->len) on a character
+             * boundary: either the cut fell on ASCII, or the whole trailing
+             * multi-byte character is dropped.  Do not look at
+             * data[out->len - 1]: a complete multi-byte character also ends
+             * with a non-ASCII byte, and trimming it would emit invalid UTF-8.
+             */
+            while (out->len > 0 &&
+                   ((unsigned char)out->data[out->len] & 0xC0) == 0x80) {
+                out->len--;
+            }
             out->data[out->len] = '\0';
         }
         str_append_cstr(out, "\n[tool output truncated]");
@@ -191,12 +202,24 @@ int agent_run(Agent *a, const char *user_text, char *err, size_t errcap)
     int step;
     int unlimited;
     Str guard_sig;
+    Str round_guard_sig;
     int guard_count = 0;
+    int round_guard_count = 0;
 
     if (a == NULL || a->cfg == NULL || user_text == NULL) {
         return -1;
     }
-    if (err != NULL && errcap > 0) {
+    {
+        /* Every error path below calls snprintf(err, errcap, ...): give it a
+         * real buffer even when the caller does not want the message. */
+        static char discard[1];
+
+        if (err == NULL) {
+            err = discard;
+            errcap = 0;
+        }
+    }
+    if (errcap > 0) {
         err[0] = '\0';
     }
     if (a->workspace[0] == '\0') {
@@ -205,8 +228,10 @@ int agent_run(Agent *a, const char *user_text, char *err, size_t errcap)
     }
     agent_ensure_dirs(a);
     str_init(&guard_sig);
+    str_init(&round_guard_sig);
     if (msglist_add(&a->messages, MSG_USER, user_text) == NULL) {
         str_free(&guard_sig);
+        str_free(&round_guard_sig);
         snprintf(err, errcap, "out of memory");
         return -1;
     }
@@ -220,15 +245,18 @@ int agent_run(Agent *a, const char *user_text, char *err, size_t errcap)
         char roundbuf[64];
         int rc;
         int guard_tripped = 0;
+        int round_block = 0;
 
         if (!unlimited && step >= a->cfg->max_steps) {
             str_free(&guard_sig);
+            str_free(&round_guard_sig);
             snprintf(err, errcap, "stopped after %d tool rounds (max_steps)",
                      a->cfg->max_steps);
             return -1;
         }
         if (a->cancel != NULL && *a->cancel) {
             str_free(&guard_sig);
+            str_free(&round_guard_sig);
             snprintf(err, errcap, "cancelled by user");
             return -1;
         }
@@ -246,6 +274,7 @@ int agent_run(Agent *a, const char *user_text, char *err, size_t errcap)
         if (rc != 0) {
             chat_result_free(&res);
             str_free(&guard_sig);
+            str_free(&round_guard_sig);
             if (err != NULL && errcap > 0 && err[0] == '\0') {
                 snprintf(err, errcap, "API request failed");
             }
@@ -254,7 +283,22 @@ int agent_run(Agent *a, const char *user_text, char *err, size_t errcap)
 
         calls_json = calls_to_json(&res);
         if (calls_json != NULL) {
-            log_debug("tool calls: %s", calls_json);
+            {
+                char _rb[2048];
+                size_t _n = calls_json ? strlen(calls_json) : 0;
+                if (_n >= sizeof(_rb)) _n = sizeof(_rb) - 1;
+                if (calls_json) memcpy(_rb, calls_json, _n);
+                _rb[_n] = 0;
+                /* crude redact */
+                {
+                    char *q = _rb;
+                    while ((q = strstr(q, "api_key")) != NULL) {
+                        q += 7;
+                        while (*q && *q != ',' && *q != '}') { if (*q!='"'&&*q!='\\'&&*q!=':'&&*q!=' ') *q='*'; q++; }
+                    }
+                }
+                log_debug("tool calls: %s", _rb);
+            }
         }
         if (msglist_add_assistant(&a->messages,
                                   res.content.data ? res.content.data : "",
@@ -262,6 +306,7 @@ int agent_run(Agent *a, const char *user_text, char *err, size_t errcap)
             cJSON_free(calls_json);
             chat_result_free(&res);
             str_free(&guard_sig);
+            str_free(&round_guard_sig);
             snprintf(err, errcap, "out of memory");
             return -1;
         }
@@ -271,12 +316,54 @@ int agent_run(Agent *a, const char *user_text, char *err, size_t errcap)
             if (res.content.len == 0) {
                 chat_result_free(&res);
                 str_free(&guard_sig);
+                str_free(&round_guard_sig);
                 snprintf(err, errcap, "model returned an empty response");
                 return -1;
             }
             chat_result_free(&res);
             str_free(&guard_sig);
+            str_free(&round_guard_sig);
             return 0;
+        }
+
+        /* Round-level guard: a model that alternates between two tool calls
+         * (A, B, A, B, ...) never repeats the same call twice in a row, so the
+         * per-call guard below cannot see it.  Compare the whole set of calls
+         * issued in this round with the previous round's set instead.
+         * round_block stays 0 unless the round repeats; it never touches the
+         * per-call counter, so the documented 3-call / 4-call thresholds keep
+         * working independently. */
+        {
+            Str this_round;
+            int r_idx;
+
+            str_init(&this_round);
+            for (r_idx = 0; r_idx < res.call_count; r_idx++) {
+                const char *cn = res.calls[r_idx].name ? res.calls[r_idx].name : "";
+                const char *ca = res.calls[r_idx].arguments.data
+                                     ? res.calls[r_idx].arguments.data : "";
+                str_append_cstr(&this_round, cn);
+                str_append_char(&this_round, '\x1f');
+                str_append_cstr(&this_round, ca);
+                str_append_char(&this_round, '\x1e');
+            }
+            if (round_guard_sig.len > 0 &&
+                this_round.len == round_guard_sig.len &&
+                memcmp(this_round.data, round_guard_sig.data,
+                       this_round.len) == 0) {
+                round_guard_count++;
+            } else {
+                str_clear(&round_guard_sig);
+                str_append(&round_guard_sig, this_round.data, this_round.len);
+                round_guard_count = 1;
+            }
+            if (round_guard_count >= 3) {
+                round_block = round_guard_count;
+                if (round_guard_count >= 4) {
+                    guard_tripped = 1;
+                }
+            }
+            str_free(&this_round);
         }
 
         {
@@ -290,10 +377,12 @@ int agent_run(Agent *a, const char *user_text, char *err, size_t errcap)
                 char *summary;
                 int allowed = 1;
                 int blocked = 0;
+                int block_repeat = 0;
 
                 if (a->cancel != NULL && *a->cancel) {
                     chat_result_free(&res);
                     str_free(&guard_sig);
+                    str_free(&round_guard_sig);
                     snprintf(err, errcap, "cancelled by user");
                     return -1;
                 }
@@ -305,8 +394,14 @@ int agent_run(Agent *a, const char *user_text, char *err, size_t errcap)
                     /* The run is already stopping; still answer this call so
                      * the history stays valid for the next user turn. */
                     blocked = 1;
+                    block_repeat = round_guard_count > guard_count
+                                       ? round_guard_count : guard_count;
+                } else if (round_block) {
+                    blocked = 1;
+                    block_repeat = round_block;
                 } else if (guard_matches(&guard_sig, name, args)) {
                     guard_count++;
+                    block_repeat = guard_count;
                     if (guard_count >= 3) {
                         blocked = 1;
                         if (guard_count >= 4) {
@@ -326,17 +421,17 @@ int agent_run(Agent *a, const char *user_text, char *err, size_t errcap)
                                     "Tool call blocked by loop guard: %s was "
                                     "called with identical arguments %d times "
                                     "in a row. The run is being stopped; do not "
-                                    "repeat this call.", name, guard_count);
+                                    "repeat this call.", name, block_repeat);
                     } else {
                         str_appendf(&out,
                                     "Tool call blocked by loop guard: %s was "
                                     "called with identical arguments %d times "
                                     "in a row. Do not repeat it; use different "
                                     "arguments or a different tool, or finish "
-                                    "and answer the user.", name, guard_count);
+                                    "and answer the user.", name, block_repeat);
                     }
                     log_warn("loop guard: blocked repeated tool call %s (x%d)",
-                             name, guard_count);
+                             name, block_repeat);
                 } else {
                     if (tool_needs_confirm(name) && a->on_confirm != NULL) {
                         allowed = a->on_confirm(a->confirm_ctx, name, args);
@@ -356,6 +451,7 @@ int agent_run(Agent *a, const char *user_text, char *err, size_t errcap)
                     str_free(&out);
                     chat_result_free(&res);
                     str_free(&guard_sig);
+                    str_free(&round_guard_sig);
                     snprintf(err, errcap, "out of memory");
                     return -1;
                 }
@@ -366,6 +462,7 @@ int agent_run(Agent *a, const char *user_text, char *err, size_t errcap)
 
         if (guard_tripped) {
             str_free(&guard_sig);
+            str_free(&round_guard_sig);
             snprintf(err, errcap,
                      "loop guard stopped the run: the model kept repeating "
                      "the same tool call");
