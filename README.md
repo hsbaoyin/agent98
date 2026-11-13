@@ -4,7 +4,7 @@
 
 [![Platform: Windows 95/98/ME](https://img.shields.io/badge/platform-Windows%2095%20%7C%2098%20%7C%20ME-2b2b2b)](#)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Latest release](https://img.shields.io/github/v/release/hsbaoyin/agent98?label=download)](https://github.com/hsbaoyin/agent98/releases/latest)
+[![Latest release](https://img.shields.io/github/v/release/hsbaoyin/windows98-chatgpt?label=download)](https://github.com/hsbaoyin/windows98-chatgpt/releases/latest)
 [![No relay](https://img.shields.io/badge/relay%20box-not%20required-brightgreen)](#)
 
 **ChatGPT on Windows 98.**
@@ -16,7 +16,7 @@ no relay PC, no proxy, no patched system libraries, no Linux box in the corner.
 一个约 400 KB 的原生 Win32 程序，在 Pentium 上完成 TLS 1.2 握手，直连
 OpenAI 兼容 API —— 不需要中转机、不需要代理、不改造系统库。
 
-> **[Download the latest release](https://github.com/hsbaoyin/agent98/releases/latest)**
+> **[Download the latest release](https://github.com/hsbaoyin/windows98-chatgpt/releases/latest)**
 > — unzip into `C:\AGENT98`, edit `AGENT98.INI`, run `AGENT98.EXE`.
 
 ---
