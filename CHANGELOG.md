@@ -3,7 +3,11 @@
 All notable changes to Agent98 are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.2.0] - 2026-11-13
+
+First packaged release: the GUI gets the retro transcript, session history and
+status bar, file tools learn the Win9x code page, and the agent loop stops
+hammering the same tool call.
 
 ### Added
 

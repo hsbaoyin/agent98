@@ -2,17 +2,38 @@
 
 **English** | [简体中文](#简体中文)
 
-**A native AI chat client for Windows 9x (Windows 98 SE first).**
-**Windows 9x（优先 Windows 98 SE）上的原生 AI 聊天客户端。**
+[![Platform: Windows 95/98/ME](https://img.shields.io/badge/platform-Windows%2095%20%7C%2098%20%7C%20ME-2b2b2b)](#)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Latest release](https://img.shields.io/github/v/release/hsbaoyin/agent98?label=download)](https://github.com/hsbaoyin/agent98/releases/latest)
+[![No relay](https://img.shields.io/badge/relay%20box-not%20required-brightgreen)](#)
 
-It talks to modern HTTPS LLM APIs directly over BearSSL — no LAN relay box,
-no second machine, no patched system libraries.
-程序直接通过 BearSSL 连接现代 HTTPS LLM API，不依赖局域网中转机、第二台电脑
-或被改造过的系统库。
+**ChatGPT on Windows 98.**
+**在 Windows 98 上直接跑 ChatGPT。**
+
+A native 32-bit Win32 AI chat client for Windows 9x. One ~400 KB EXE completes
+a TLS 1.2 handshake on a Pentium and talks to OpenAI-compatible APIs directly —
+no relay PC, no proxy, no patched system libraries, no Linux box in the corner.
+一个约 400 KB 的原生 Win32 程序，在 Pentium 上完成 TLS 1.2 握手，直连
+OpenAI 兼容 API —— 不需要中转机、不需要代理、不改造系统库。
+
+> **[Download the latest release](https://github.com/hsbaoyin/agent98/releases/latest)**
+> — unzip into `C:\AGENT98`, edit `AGENT98.INI`, run `AGENT98.EXE`.
 
 ---
 
 ## English
+
+### Why this exists
+
+Most "AI on retro hardware" projects end the same way: a Raspberry Pi in the
+corner does the HTTPS and the old machine runs a terminal. That is not a
+Windows 98 app, it is a thin client with extra steps.
+
+Agent98 does the whole job on the 9x machine. DNS, TCP, a TLS 1.2 handshake
+with ECDHE and AES-GCM, chunked HTTP, SSE streaming, JSON parsing and the
+agent loop all run inside one 32-bit process on top of Winsock 2 and BearSSL.
+Point it at any OpenAI-compatible endpoint and a Pentium II can hold a
+conversation.
 
 ### Highlights
 
@@ -359,6 +380,16 @@ under `third_party/` keep their original licenses.
 ---
 
 ## 简体中文
+
+### 为什么做这个
+
+几乎所有「复古硬件跑 AI」的项目最后都是一个套路：角落里的树莓派负责
+HTTPS，老机器只跑一个终端。那不是 Windows 98 应用，那是绕了一圈的瘦客户端。
+
+Agent98 把整件事放在 9x 机器上：DNS、TCP、带 ECDHE 和 AES-GCM 的 TLS 1.2
+握手、chunked HTTP、SSE 流式、JSON 解析、agent 循环，全部跑在一个 32 位
+进程里，只依赖 Winsock 2 和 BearSSL。接上任意 OpenAI 兼容端点，Pentium II
+就能开始对话。
 
 ### 简介
 
